@@ -3,11 +3,13 @@ class_name WorldGraphRuntime
 
 const GRAPH_GENERATOR_SCRIPT := preload("res://scripts/world/world_graph_generator.gd")
 const SUBREGION_GRAPH_GENERATOR := preload("res://scripts/world/subregion_graph_generator.gd")
+const STREAMING_PLANNER := preload("res://scripts/world/world_streaming_planner.gd")
 
 const UPDATE_INTERVAL: float = 0.30
 const LOAD_RADIUS: float = 245.0
 const UNLOAD_RADIUS: float = 330.0
 const DEFAULT_GRAPH_NODES: int = 18
+const STREAM_LOAD_BUDGET: int = 2
 
 var world: Node3D
 var world_state: Node
@@ -20,6 +22,8 @@ var subregion_cache: Dictionary = {}
 var regions_root: Node3D
 var elapsed: float = 0.0
 var active_world_seed: int = 8242601
+var route_target_id: String = ""
+var last_streaming_plan: Array[Dictionary] = []
 
 func _ready() -> void:
 	add_to_group("world_graph_runtime")
@@ -60,6 +64,8 @@ func _process(delta: float) -> void:
 func rebuild_for_seed(seed_value: int, target_nodes: int = DEFAULT_GRAPH_NODES) -> void:
 	_release_all()
 	subregion_cache.clear()
+	last_streaming_plan.clear()
+	route_target_id = ""
 	active_world_seed = seed_value
 	if generator == null:
 		generator = GRAPH_GENERATOR_SCRIPT.new()
@@ -67,6 +73,12 @@ func rebuild_for_seed(seed_value: int, target_nodes: int = DEFAULT_GRAPH_NODES) 
 	graph = generator.call("generate_graph", target_nodes)
 	_index_graph()
 	_update_streaming()
+
+func set_route_target(stable_id: String) -> void:
+	route_target_id = stable_id if stable_id.is_empty() or nodes_by_id.has(stable_id) else ""
+
+func streaming_plan_snapshot() -> Array[Dictionary]:
+	return last_streaming_plan.duplicate(true)
 
 func graph_node(stable_id: String) -> Dictionary:
 	var value: Variant = nodes_by_id.get(stable_id, {})
@@ -143,21 +155,38 @@ func _update_streaming() -> void:
 	if player == null or regions_root == null:
 		return
 	var position: Vector3 = player.global_position
-	for value in nodes_by_id.values():
-		if not value is Dictionary:
-			continue
-		var node: Dictionary = value as Dictionary
-		# The original four regions remain owned by RegionManager during the
-		# migration. Only new graph-generated instances are streamed here.
-		if node.get("anchor", false) == true:
-			continue
-		var stable_id: String = str(node.get("stable_id", ""))
-		var center: Vector3 = node.get("center", Vector3.ZERO)
-		var distance: float = _flat_distance(position, center)
-		if distance <= LOAD_RADIUS and not loaded_regions.has(stable_id):
-			_load_graph_region(node)
-		elif distance >= UNLOAD_RADIUS and loaded_regions.has(stable_id):
+	for stable_id in loaded_region_ids():
+		var node: Dictionary = graph_node(stable_id)
+		if node.is_empty():
 			_unload_graph_region(stable_id)
+			continue
+		var center: Vector3 = node.get("center", Vector3.ZERO)
+		if _flat_distance(position, center) >= UNLOAD_RADIUS:
+			_unload_graph_region(stable_id)
+
+	var current_node: Dictionary = nearest_node(position, true)
+	var current_region_id: String = str(current_node.get("stable_id", ""))
+	var graph_nodes: Array = []
+	for node_value in nodes_by_id.values():
+		if node_value is Dictionary:
+			graph_nodes.append(node_value)
+	var excluded: Dictionary = {}
+	for stable_id in loaded_region_ids():
+		excluded[stable_id] = true
+	last_streaming_plan = STREAMING_PLANNER.rank_candidates(
+		graph_nodes,
+		position,
+		current_region_id,
+		route_target_id,
+		LOAD_RADIUS,
+		STREAM_LOAD_BUDGET,
+		excluded
+	)
+	for candidate in last_streaming_plan:
+		var stable_id: String = str(candidate.get("stable_id", ""))
+		var node: Dictionary = graph_node(stable_id)
+		if not node.is_empty():
+			_load_graph_region(node)
 
 func _load_graph_region(node: Dictionary) -> Node3D:
 	if node.is_empty() or regions_root == null:
