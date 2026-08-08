@@ -8,6 +8,14 @@ const CATALOG_UNLOAD_RADIUS: float = 185.0
 
 var landmark_builder: RefCounted = LANDMARK_BUILDER_SCRIPT.new()
 
+func _build_backbone_routes() -> void:
+	# The inherited manager creates the prototype route geometry during install,
+	# before player/streaming checks. Headless and dedicated-server runtimes only
+	# need deterministic route data, not client presentation meshes.
+	if DisplayServer.get_name() == "headless":
+		return
+	super._build_backbone_routes()
+
 func _update_streaming() -> void:
 	var player: Node3D = _get_player()
 	if player == null:
