@@ -20,8 +20,8 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --path . --editor --quit 2>&1 | tee godot-editor.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:" godot-editor.log; then
-            echo "Godot script errors detected"
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-editor.log; then
+            echo "Godot editor/script errors detected"
             exit 1
           fi
 
@@ -30,7 +30,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --path . --quit-after 120 2>&1 | tee godot-game.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:" godot-game.log; then
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-game.log; then
             echo "Godot runtime errors detected"
             exit 1
           fi
