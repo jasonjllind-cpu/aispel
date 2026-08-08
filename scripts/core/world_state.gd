@@ -1,5 +1,9 @@
 extends Node
 
+signal world_reset(seed: int)
+signal world_restored(seed: int)
+signal state_changed(kind: String, stable_id: String)
+
 const DEFAULT_WORLD_SEED: int = 8242601
 const SNAPSHOT_VERSION: int = 2
 
@@ -18,6 +22,8 @@ func new_world(seed_value: int = DEFAULT_WORLD_SEED) -> void:
 	discovered_regions.clear()
 	world_flags.clear()
 	entity_states.clear()
+	world_reset.emit(world_seed)
+	state_changed.emit("world", "reset")
 
 func sanitize_seed(seed_value: int) -> int:
 	if seed_value == 0:
@@ -34,20 +40,40 @@ func generation_seed(region_id: String, layer_id: String, chunk_x: int = 0, chun
 func seed_namespace(region_id: String, layer_id: String) -> String:
 	return "%d:%s:%s" % [world_seed, region_id, layer_id]
 
+func set_current_region(region_id: String) -> void:
+	if region_id.is_empty() or current_region_id == region_id:
+		return
+	current_region_id = region_id
+	state_changed.emit("region", region_id)
+
 func mark_region_discovered(region_id: String) -> void:
+	if region_id.is_empty() or is_region_discovered(region_id):
+		return
 	discovered_regions[region_id] = true
+	state_changed.emit("discovery", region_id)
 
 func is_region_discovered(region_id: String) -> bool:
-	return bool(discovered_regions.get(region_id, false))
+	return discovered_regions.has(region_id) and discovered_regions.get(region_id, false) == true
 
 func set_flag(flag_id: String, value: Variant = true) -> void:
+	if flag_id.is_empty():
+		return
+	if world_flags.has(flag_id) and world_flags[flag_id] == value:
+		return
 	world_flags[flag_id] = value
+	state_changed.emit("flag", flag_id)
 
 func get_flag(flag_id: String, default_value: Variant = false) -> Variant:
 	return world_flags.get(flag_id, default_value)
 
 func set_entity_state(entity_id: String, state: Dictionary) -> void:
-	entity_states[entity_id] = state.duplicate(true)
+	if entity_id.is_empty():
+		return
+	var new_state: Dictionary = state.duplicate(true)
+	if entity_states.has(entity_id) and entity_states[entity_id] == new_state:
+		return
+	entity_states[entity_id] = new_state
+	state_changed.emit("entity", entity_id)
 
 func get_entity_state(entity_id: String) -> Dictionary:
 	var state: Variant = entity_states.get(entity_id, {})
@@ -71,6 +97,8 @@ func restore_snapshot(data: Dictionary) -> void:
 	discovered_regions = _dictionary_copy(data.get("discovered_regions", {}))
 	world_flags = _dictionary_copy(data.get("world_flags", {}))
 	entity_states = _dictionary_copy(data.get("entity_states", {}))
+	world_restored.emit(world_seed)
+	state_changed.emit("world", "restore")
 
 func _apply_command_line_seed() -> void:
 	for argument in OS.get_cmdline_user_args():
