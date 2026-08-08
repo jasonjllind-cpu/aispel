@@ -1,4 +1,4 @@
-[gd_scene load_steps=13 format=3]
+[gd_scene load_steps=14 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
@@ -12,6 +12,7 @@
 [ext_resource type="Script" path="res://scripts/dungeon/dungeon_system.gd" id="10_dungeon_system"]
 [ext_resource type="Script" path="res://scripts/core/game_persistence_system.gd" id="11_persistence"]
 [ext_resource type="Script" path="res://scripts/network/network_session.gd" id="12_network"]
+[ext_resource type="Script" path="res://scripts/network/network_command_router.gd" id="13_network_commands"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_world")
@@ -21,6 +22,9 @@ script = ExtResource("11_persistence")
 
 [node name="NetworkSession" type="Node" parent="."]
 script = ExtResource("12_network")
+
+[node name="NetworkCommandRouter" type="Node" parent="."]
+script = ExtResource("13_network_commands")
 
 [node name="ExplorationSystem" type="Node" parent="."]
 script = ExtResource("2_exploration")
