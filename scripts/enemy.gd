@@ -16,12 +16,20 @@ var attack_timer := 0.0
 var stagger_timer := 0.0
 var walk_phase := 0.0
 var dead := false
+var network_session: Node
 
 func _ready() -> void:
 	add_to_group("enemy")
 	health = max_health
+	if not persistent_id.is_empty():
+		set_meta("stable_id", persistent_id)
 
 func _physics_process(delta: float) -> void:
+	# In co-op the host/server owns enemy simulation. Clients only display
+	# snapshots supplied by NetworkEnemyManager.
+	if _is_network_client():
+		velocity = Vector3.ZERO
+		return
 	if dead:
 		return
 	attack_timer = max(attack_timer - delta, 0.0)
@@ -94,7 +102,7 @@ func _animate_visual(delta: float, moving: bool) -> void:
 			leg_r.rotation_degrees.x = lerp(leg_r.rotation_degrees.x, 0.0, min(delta * 7.0, 1.0))
 
 func _try_attack() -> void:
-	if attack_timer > 0.0 or target == null:
+	if _is_network_client() or attack_timer > 0.0 or target == null:
 		return
 	attack_timer = attack_cooldown
 	_play_attack_animation()
@@ -111,7 +119,7 @@ func _play_attack_animation() -> void:
 	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, 30), 0.28).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 
 func receive_damage(amount: int, attacker: Node = null) -> void:
-	if dead:
+	if _is_network_client() or dead:
 		return
 	health -= amount
 	stagger_timer = 0.22
@@ -160,3 +168,10 @@ func _record_persistent_death() -> void:
 	var world_state := get_node_or_null("/root/WorldState")
 	if world_state != null and world_state.has_method("set_entity_state"):
 		world_state.call("set_entity_state", persistent_id, {"dead": true})
+
+func _is_network_client() -> bool:
+	if not is_instance_valid(network_session):
+		var sessions: Array[Node] = get_tree().get_nodes_in_group("network_session")
+		if not sessions.is_empty():
+			network_session = sessions[0]
+	return network_session != null and str(network_session.get("session_mode")) == "client"
