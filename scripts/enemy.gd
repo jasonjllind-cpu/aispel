@@ -7,6 +7,7 @@ extends CharacterBody3D
 @export var max_health := 46
 @export var attack_damage := 13
 @export var attack_cooldown := 1.15
+@export var persistent_id := ""
 
 var gravity := 18.0
 var target: Node3D
@@ -138,9 +139,12 @@ func _flash_hit() -> void:
 func _die() -> void:
 	dead = true
 	remove_from_group("enemy")
-	var world: Node = get_parent()
-	if world != null and world.has_method("spawn_combat_loot"):
-		world.spawn_combat_loot(global_position)
+	_record_persistent_death()
+
+	var main_world: Node = get_tree().current_scene
+	if main_world != null and main_world.has_method("spawn_combat_loot"):
+		main_world.call("spawn_combat_loot", global_position)
+
 	var visual := get_node_or_null("Visual") as Node3D
 	if visual != null:
 		var tween := create_tween()
@@ -149,3 +153,10 @@ func _die() -> void:
 		tween.tween_callback(queue_free)
 	else:
 		queue_free()
+
+func _record_persistent_death() -> void:
+	if persistent_id.is_empty():
+		return
+	var world_state := get_node_or_null("/root/WorldState")
+	if world_state != null and world_state.has_method("set_entity_state"):
+		world_state.call("set_entity_state", persistent_id, {"dead": true})
