@@ -57,5 +57,15 @@ func _load_region(definition: Dictionary) -> void:
 	# by their dedicated deterministic systems.
 	_build_region_landmark(region_node, region_id, biome)
 
+func _unload_region(region_id: String) -> void:
+	# Return reusable terrain chunks to the generator pool before the region
+	# node is freed. Generated exploration content is deterministic and can be
+	# rebuilt from data; terrain chunks are the heavier reusable runtime nodes.
+	if world != null:
+		var procedural_world := world.get_node_or_null("ProceduralWorldSystem")
+		if procedural_world != null and procedural_world.has_method("release_region_terrain"):
+			procedural_world.call("release_region_terrain", region_id)
+	super._unload_region(region_id)
+
 func _get_region_definition(region_id: String) -> Dictionary:
 	return REGION_CATALOG.get_region(region_id)
