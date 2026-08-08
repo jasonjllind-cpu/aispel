@@ -3,6 +3,7 @@ class_name NetworkCombatAuthority
 
 signal attack_applied(peer_id: int, target_id: String, damage: int, target_health: int)
 signal attack_rejected(peer_id: int, target_id: String, reason: String)
+signal player_damaged(peer_id: int, damage: int, health: int)
 
 const MAX_ATTACK_DISTANCE: float = 4.2
 const MIN_ATTACK_INTERVAL_MSEC: int = 320
@@ -97,19 +98,37 @@ func execute_attack(peer_id: int, target_id: String) -> Dictionary:
 	var target_health: int = max(0, int(target.get("health")))
 	var dead: bool = target.get("dead") == true or target_health <= 0
 	if world_state != null and world_state.has_method("set_entity_state"):
-		world_state.call("set_entity_state", target_id, {
-			"dead": dead,
-			"health": target_health
-		})
+		world_state.call("set_entity_state", target_id, {"dead": dead, "health": target_health})
 	attack_applied.emit(peer_id, target_id, SERVER_ATTACK_DAMAGE, target_health)
-	return {
-		"ok": true,
-		"peer_id": peer_id,
-		"target_id": target_id,
-		"damage": SERVER_ATTACK_DAMAGE,
-		"target_health": target_health,
-		"dead": dead
-	}
+	return {"ok": true, "peer_id": peer_id, "target_id": target_id, "damage": SERVER_ATTACK_DAMAGE, "target_health": target_health, "dead": dead}
+
+func damage_player(peer_id: int, amount: int) -> Dictionary:
+	_resolve_dependencies()
+	if amount <= 0 or network_session == null or network_session.call("is_server_authority") != true:
+		return {"ok": false, "error": "not_authority"}
+	var local_peer: int = int(network_session.call("local_peer_id"))
+	if peer_id == local_peer:
+		var players: Array[Node] = get_tree().get_nodes_in_group("player")
+		if players.is_empty() or not players[0].has_method("receive_damage"):
+			return {"ok": false, "error": "local_player_missing"}
+		players[0].call("receive_damage", amount)
+		var local_health: int = max(0, int(players[0].get("health")))
+		if player_manager != null and player_manager.has_method("set_authoritative_health"):
+			player_manager.call("set_authoritative_health", peer_id, local_health)
+		player_damaged.emit(peer_id, amount, local_health)
+		return {"ok": true, "peer_id": peer_id, "health": local_health}
+	if player_manager == null or not player_manager.has_method("state_for_peer"):
+		return {"ok": false, "error": "player_manager_missing"}
+	var state: Dictionary = player_manager.call("state_for_peer", peer_id)
+	if state.is_empty():
+		return {"ok": false, "error": "player_state_missing"}
+	var current_health: int = max(0, int(state.get("health", 100)))
+	var new_health: int = max(0, current_health - amount)
+	player_manager.call("set_authoritative_health", peer_id, new_health)
+	if str(network_session.get("session_mode")) == "host":
+		_apply_player_damage.rpc_id(peer_id, amount, new_health)
+	player_damaged.emit(peer_id, amount, new_health)
+	return {"ok": true, "peer_id": peer_id, "health": new_health}
 
 func _nearest_attack_target_id(player: Node3D) -> String:
 	var forward: Vector3 = -player.global_transform.basis.z
@@ -135,9 +154,8 @@ func _nearest_attack_target_id(player: Node3D) -> String:
 	return best_id
 
 func _on_authoritative_command(peer_id: int, action: String, payload: Dictionary) -> void:
-	if action != "attack":
-		return
-	execute_attack(peer_id, str(payload.get("target_id", "")))
+	if action == "attack":
+		execute_attack(peer_id, str(payload.get("target_id", "")))
 
 func _on_world_delta_applied(_sequence: int, kind: String, stable_id: String) -> void:
 	if kind != "entity" or world_state == null:
@@ -194,3 +212,16 @@ func _resolve_dependencies() -> void:
 		player_manager = parent.get_node_or_null("NetworkPlayerManager")
 	if not is_instance_valid(world_replicator):
 		world_replicator = parent.get_node_or_null("NetworkWorldStateReplicator")
+
+@rpc("authority", "call_remote", "reliable")
+func _apply_player_damage(amount: int, authoritative_health: int) -> void:
+	var players: Array[Node] = get_tree().get_nodes_in_group("player")
+	if players.is_empty() or not players[0].has_method("receive_damage"):
+		return
+	players[0].call("receive_damage", amount)
+	# Keep the client display exactly aligned with the host after local death/
+	# hit effects have run. A later player snapshot confirms the same value.
+	if authoritative_health > 0:
+		players[0].set("health", authoritative_health)
+		if players[0].has_method("_refresh_hud"):
+			players[0].call("_refresh_hud")
