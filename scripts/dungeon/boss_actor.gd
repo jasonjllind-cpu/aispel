@@ -1,7 +1,10 @@
 extends "res://scripts/enemy.gd"
 class_name DungeonBossActor
 
-@export var boss_id: String = "hollow_king"
+@export var boss_id: String = "hollow_king":
+	set(value):
+		boss_id = value
+		_sync_persistent_id()
 @export var dungeon_id: String = "moon_catacombs"
 @export var boss_title: String = "The Hollow King"
 
@@ -9,7 +12,7 @@ var enraged: bool = false
 
 func _ready() -> void:
 	enemy_name = boss_title
-	persistent_id = "boss:%s" % boss_id
+	_sync_persistent_id()
 	max_health = max(max_health, 180)
 	move_speed = max(move_speed, 2.6)
 	detection_range = max(detection_range, 24.0)
@@ -17,6 +20,11 @@ func _ready() -> void:
 	attack_cooldown = min(attack_cooldown, 0.95)
 	super._ready()
 	add_to_group("boss")
+
+func _sync_persistent_id() -> void:
+	if boss_id.is_empty():
+		return
+	persistent_id = "boss:%s" % boss_id
 
 func receive_damage(amount: int, attacker: Node = null) -> void:
 	super.receive_damage(amount, attacker)
