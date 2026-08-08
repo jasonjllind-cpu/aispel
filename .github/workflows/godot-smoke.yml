@@ -20,7 +20,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --path . --editor --quit 2>&1 | tee godot-editor.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-editor.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-editor.log; then
             echo "Godot editor/script errors detected"
             exit 1
           fi
@@ -31,7 +31,7 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/generation_determinism_test.gd 2>&1 | tee godot-generation.log
           grep -q "GENERATION_DETERMINISM_OK" godot-generation.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-generation.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-generation.log; then
             echo "Generation test errors detected"
             exit 1
           fi
@@ -42,7 +42,7 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/world_runtime_foundation_test.gd 2>&1 | tee godot-foundation.log
           grep -q "WORLD_RUNTIME_FOUNDATION_OK" godot-foundation.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-foundation.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-foundation.log; then
             echo "World runtime foundation errors detected"
             exit 1
           fi
@@ -52,9 +52,7 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --path . --quit-after 120 2>&1 | tee godot-game.log
-          # Godot 4.3's dummy renderer emits this exact benign message for
-          # presentation meshes in headless mode. Keep every other ERROR fatal.
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-game.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-game.log; then
             echo "Godot runtime errors detected"
             exit 1
           fi
