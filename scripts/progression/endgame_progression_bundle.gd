@@ -158,7 +158,8 @@ static func finish_ending(bundle: Dictionary, route: String, external_state_ids:
 	var result: Dictionary = bundle.duplicate(true)
 	if not validate(result) or not ["moon", "veil"].has(route):
 		return result
-	if result.get("postgame_profile", {}) is Dictionary and not (result.get("postgame_profile", {}) as Dictionary).is_empty():
+	var postgame_value: Variant = result.get("postgame_profile", {})
+	if postgame_value is Dictionary and not (postgame_value as Dictionary).is_empty():
 		return result
 	var boss_state: Dictionary = result.get("boss_state", {}) as Dictionary
 	if boss_state.get("final_boss_defeated", false) != true:
@@ -170,7 +171,7 @@ static func finish_ending(bundle: Dictionary, route: String, external_state_ids:
 		return result
 	var milestone_id: String = "campaign:ending_%s" % route
 	var completed_result: Dictionary = complete_campaign(result, milestone_id, external_state_ids)
-	if not (_to_string_array(completed_result.get("completed_campaign", []) as Array)).has(milestone_id):
+	if not _to_string_array(completed_result.get("completed_campaign", []) as Array).has(milestone_id):
 		return result
 	result = completed_result
 	var ending_id: String = str(CAMPAIGN.get_milestone(milestone_id).get("ending_id", ""))
@@ -213,10 +214,17 @@ static func save_envelope(bundle: Dictionary) -> Dictionary:
 	return SAVE.encode(snapshot, int(bundle.get("sequence", 0))) if not snapshot.is_empty() else {}
 
 static func restore_envelope(envelope: Dictionary, graph: Dictionary) -> Dictionary:
-	var snapshot: Dictionary = SAVE.decode(envelope)
+	var migrated: Dictionary = SAVE.migrate(envelope)
+	if migrated.is_empty():
+		return {}
+	var snapshot: Dictionary = SAVE.decode(migrated)
 	if snapshot.is_empty():
 		return {}
-	return restore_network_snapshot(snapshot, graph)
+	var restored: Dictionary = restore_network_snapshot(snapshot, graph)
+	if restored.is_empty():
+		return {}
+	restored["sequence"] = maxi(int(restored.get("sequence", 0)), int(migrated.get("save_sequence", 0)))
+	return restored if validate(restored) else {}
 
 static func restore_network_snapshot(snapshot: Dictionary, graph: Dictionary) -> Dictionary:
 	var base: Dictionary = create(graph)
@@ -232,7 +240,11 @@ static func restore_network_snapshot(snapshot: Dictionary, graph: Dictionary) ->
 	base["choice_state"] = (snapshot.get("choice_state", {}) as Dictionary).duplicate(true)
 	base["postgame_profile"] = (snapshot.get("postgame_profile", {}) as Dictionary).duplicate(true)
 	base["revision"] = int(snapshot.get("revision", 1))
-	base["sequence"] = maxi(int(base.get("sequence", 0)), int((base.get("boss_state", {}) as Dictionary).get("last_sequence", 0)), int((base.get("relic_state", {}) as Dictionary).get("revision", 0)), int((base.get("choice_state", {}) as Dictionary).get("revision", 0)))
+	var restored_sequence: int = int(snapshot.get("revision", 1))
+	restored_sequence = maxi(restored_sequence, int((base.get("boss_state", {}) as Dictionary).get("last_sequence", 0)))
+	restored_sequence = maxi(restored_sequence, int((base.get("relic_state", {}) as Dictionary).get("revision", 0)))
+	restored_sequence = maxi(restored_sequence, int((base.get("choice_state", {}) as Dictionary).get("revision", 0)))
+	base["sequence"] = restored_sequence
 	return base if validate(base) else {}
 
 static func region_access(bundle: Dictionary, region_id: String) -> Dictionary:
