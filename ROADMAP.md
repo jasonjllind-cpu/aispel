@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.63
+## Current build: 0.64
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -70,7 +70,7 @@
 - [x] 0.61 Data-driven regional encounter archetypes and deterministic encounter composition plans
 - [x] 0.62 Regional loot tables, rarity bands and progression-aware reward plans
 - [x] 0.63 Expanded minor POI archetypes and theme-aware placement rules
-- [ ] 0.64 Settlement archetypes, services and deterministic population profiles
+- [x] 0.64 Settlement archetypes, services and deterministic population profiles
 - [ ] 0.65 Regional dungeon entrance families and dungeon-theme routing
 - [ ] 0.66 World-event archetypes with deterministic regional scheduling/state IDs
 - [ ] 0.67 Lore discovery catalog: shrines, inscriptions, relic records and region history fragments
