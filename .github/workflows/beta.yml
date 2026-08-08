@@ -43,3 +43,28 @@ jobs:
             echo "::error title=Runtime performance script errors::$message"
             exit 1
           fi
+
+      - name: Verify streaming and terrain pool optimization
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/streaming_optimization_test.gd 2>&1 | tee streaming-optimization.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 40 streaming-optimization.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Streaming optimization Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "STREAMING_OPTIMIZATION_OK" streaming-optimization.log; then
+            message=$(tail -n 40 streaming-optimization.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Streaming optimization marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" streaming-optimization.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Streaming optimization script errors::$message"
+            exit 1
+          fi
