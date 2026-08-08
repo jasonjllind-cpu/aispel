@@ -73,9 +73,9 @@ static func build_profile(biome_id: String, progression_band: String, graph_dept
 	var modifier: Dictionary = PROGRESSION_MODIFIERS[resolved_band] as Dictionary
 	var depth: int = maxi(0, graph_depth)
 	var depth_step: int = mini(4, depth)
-	var encounter_budget: int = int(base.get("encounter_budget", 2)) + int(modifier.get("encounter_bonus", 0)) + depth_step / 2
+	var encounter_budget: int = int(base.get("encounter_budget", 2)) + int(modifier.get("encounter_bonus", 0)) + floori(float(depth_step) / 2.0)
 	var poi_budget: int = int(base.get("poi_budget", 3)) + int(modifier.get("poi_bonus", 0))
-	var loot_tier: int = int(base.get("loot_tier", 1)) + int(modifier.get("loot_bonus", 0)) + depth_step / 3
+	var loot_tier: int = int(base.get("loot_tier", 1)) + int(modifier.get("loot_bonus", 0)) + floori(float(depth_step) / 3.0)
 	var danger: float = clampf(float(base.get("danger", 0.30)) + float(modifier.get("danger_bonus", 0.0)) + float(depth_step) * 0.035, 0.0, 1.0)
 	var secret_chance: float = clampf(float(base.get("secret_chance", 0.18)) + float(modifier.get("secret_bonus", 0.0)) + float(depth_step) * 0.015, 0.0, 0.85)
 	return {
