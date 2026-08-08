@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.67
+## Current build: 0.68
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -74,7 +74,7 @@
 - [x] 0.65 Regional dungeon entrance families and dungeon-theme routing
 - [x] 0.66 World-event archetypes with deterministic regional scheduling/state IDs
 - [x] 0.67 Lore discovery catalog: shrines, inscriptions, relic records and region history fragments
-- [ ] 0.68 Content-density balancing across biomes/progression bands with large-world coverage gates
+- [x] 0.68 Content-density balancing across biomes/progression bands with large-world coverage gates
 - [ ] 0.69 Major World & Content Expansion integration/polish pass
 
 ## Verified architecture foundations
