@@ -7,7 +7,7 @@ const NPCS: Dictionary = {
 		"display_name": "Elowen",
 		"role": "Wayfinder of the Moon Shrine",
 		"region_id": "starting_valley",
-		"position": Vector3(-27.5, 0.95, -24.0),
+		"position": Vector3(-27.5, 0.015, -24.0),
 		"body_color": Color("5c5873"),
 		"accent_color": Color("9ea9ff"),
 		"dialogue": [
@@ -32,7 +32,7 @@ const NPCS: Dictionary = {
 		"display_name": "Orrik",
 		"role": "Relic Trader",
 		"region_id": "starting_valley",
-		"position": Vector3(-12.5, 0.95, 7.0),
+		"position": Vector3(-12.5, 0.015, 7.0),
 		"body_color": Color("6b5947"),
 		"accent_color": Color("d6b16d"),
 		"dialogue": [
@@ -46,7 +46,7 @@ const NPCS: Dictionary = {
 		"display_name": "Mara",
 		"role": "Blackwood Scout",
 		"region_id": "blackwood",
-		"position": Vector3(31.0, 1.0, 6.0),
+		"position": Vector3(1.0, 0.035, -17.0),
 		"body_color": Color("35473a"),
 		"accent_color": Color("7db46a"),
 		"dialogue": [
@@ -59,7 +59,7 @@ const NPCS: Dictionary = {
 		"display_name": "Hadrin",
 		"role": "Beacon Keeper",
 		"region_id": "windscar_highlands",
-		"position": Vector3(-25.0, 1.0, 8.0),
+		"position": Vector3(25.0, 0.035, -15.0),
 		"body_color": Color("726957"),
 		"accent_color": Color("d7ca8d"),
 		"dialogue": [
@@ -72,7 +72,7 @@ const NPCS: Dictionary = {
 		"display_name": "Sister Vael",
 		"role": "Veilmoor Mourner",
 		"region_id": "veilmoor",
-		"position": Vector3(23.0, 1.0, 15.0),
+		"position": Vector3(0.0, 0.035, -2.0),
 		"body_color": Color("555169"),
 		"accent_color": Color("9995e8"),
 		"dialogue": [
