@@ -10,6 +10,8 @@ const LOAD_RADIUS: float = 245.0
 const UNLOAD_RADIUS: float = 330.0
 const DEFAULT_GRAPH_NODES: int = 18
 const STREAM_LOAD_BUDGET: int = 2
+const MAX_ACTIVE_GRAPH_REGIONS: int = 7
+const MAX_SUBREGION_CACHE: int = 24
 
 var world: Node3D
 var world_state: Node
@@ -19,6 +21,8 @@ var graph: Dictionary = {}
 var nodes_by_id: Dictionary = {}
 var loaded_regions: Dictionary = {}
 var subregion_cache: Dictionary = {}
+var subregion_cache_order: Array[String] = []
+var subregion_cache_evictions: int = 0
 var regions_root: Node3D
 var elapsed: float = 0.0
 var active_world_seed: int = 8242601
@@ -64,6 +68,8 @@ func _process(delta: float) -> void:
 func rebuild_for_seed(seed_value: int, target_nodes: int = DEFAULT_GRAPH_NODES) -> void:
 	_release_all()
 	subregion_cache.clear()
+	subregion_cache_order.clear()
+	subregion_cache_evictions = 0
 	last_streaming_plan.clear()
 	route_target_id = ""
 	active_world_seed = seed_value
@@ -87,6 +93,7 @@ func graph_node(stable_id: String) -> Dictionary:
 func subregion_graph(stable_id: String) -> Dictionary:
 	var cached: Variant = subregion_cache.get(stable_id)
 	if cached is Dictionary:
+		_touch_subregion_cache(stable_id)
 		return (cached as Dictionary).duplicate(true)
 	var parent_region: Dictionary = graph_node(stable_id)
 	if parent_region.is_empty():
@@ -94,7 +101,7 @@ func subregion_graph(stable_id: String) -> Dictionary:
 	var generated: Dictionary = SUBREGION_GRAPH_GENERATOR.generate(active_world_seed, parent_region)
 	if generated.is_empty():
 		return {}
-	subregion_cache[stable_id] = generated.duplicate(true)
+	_store_subregion_cache(stable_id, generated)
 	return generated.duplicate(true)
 
 func cached_subregion_ids() -> Array[String]:
@@ -103,6 +110,17 @@ func cached_subregion_ids() -> Array[String]:
 		result.append(str(key))
 	result.sort()
 	return result
+
+func streaming_stats() -> Dictionary:
+	return {
+		"active_regions": loaded_regions.size(),
+		"active_region_capacity": MAX_ACTIVE_GRAPH_REGIONS,
+		"cached_subregions": subregion_cache.size(),
+		"subregion_cache_capacity": MAX_SUBREGION_CACHE,
+		"subregion_cache_evictions": subregion_cache_evictions,
+		"graph_nodes": nodes_by_id.size(),
+		"planned_loads": last_streaming_plan.size()
+	}
 
 func nearest_node(world_position: Vector3, include_anchors: bool = true) -> Dictionary:
 	var nearest: Dictionary = {}
@@ -173,16 +191,20 @@ func _update_streaming() -> void:
 	var excluded: Dictionary = {}
 	for stable_id in loaded_region_ids():
 		excluded[stable_id] = true
+	var available_slots: int = maxi(0, MAX_ACTIVE_GRAPH_REGIONS - loaded_regions.size())
+	var load_budget: int = mini(STREAM_LOAD_BUDGET, available_slots)
 	last_streaming_plan = STREAMING_PLANNER.rank_candidates(
 		graph_nodes,
 		position,
 		current_region_id,
 		route_target_id,
 		LOAD_RADIUS,
-		STREAM_LOAD_BUDGET,
+		load_budget,
 		excluded
 	)
 	for candidate in last_streaming_plan:
+		if loaded_regions.size() >= MAX_ACTIVE_GRAPH_REGIONS:
+			break
 		var stable_id: String = str(candidate.get("stable_id", ""))
 		var node: Dictionary = graph_node(stable_id)
 		if not node.is_empty():
@@ -197,6 +219,8 @@ func _load_graph_region(node: Dictionary) -> Node3D:
 	var existing_value: Variant = loaded_regions.get(stable_id)
 	if existing_value is Node3D and is_instance_valid(existing_value):
 		return existing_value as Node3D
+	if loaded_regions.size() >= MAX_ACTIVE_GRAPH_REGIONS:
+		return null
 	var region := Node3D.new()
 	region.name = _node_name(stable_id)
 	region.position = node.get("center", Vector3.ZERO)
@@ -229,10 +253,27 @@ func _release_all() -> void:
 		_unload_graph_region(stable_id)
 	loaded_regions.clear()
 
+func _store_subregion_cache(stable_id: String, value: Dictionary) -> void:
+	if stable_id.is_empty():
+		return
+	if not subregion_cache.has(stable_id) and subregion_cache.size() >= MAX_SUBREGION_CACHE and not subregion_cache_order.is_empty():
+		var evicted_id: String = subregion_cache_order.pop_front()
+		subregion_cache.erase(evicted_id)
+		subregion_cache_evictions += 1
+	subregion_cache[stable_id] = value.duplicate(true)
+	_touch_subregion_cache(stable_id)
+
+func _touch_subregion_cache(stable_id: String) -> void:
+	subregion_cache_order.erase(stable_id)
+	subregion_cache_order.append(stable_id)
+
 func _find_player() -> Node3D:
-	if get_tree() == null:
+	if not is_inside_tree():
 		return null
-	var players: Array[Node] = get_tree().get_nodes_in_group("player")
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return null
+	var players: Array[Node] = tree.get_nodes_in_group("player")
 	if players.is_empty() or not players[0] is Node3D:
 		return null
 	return players[0] as Node3D
