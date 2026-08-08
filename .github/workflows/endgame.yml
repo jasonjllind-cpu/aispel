@@ -1,0 +1,45 @@
+name: Endgame Progression Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: endgame-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  endgame:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify campaign progression graph
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/campaign_progression_catalog_test.gd 2>&1 | tee campaign-progression.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 campaign-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Campaign progression Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "CAMPAIGN_PROGRESSION_CATALOG_OK" campaign-progression.log; then
+            message=$(tail -n 30 campaign-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Campaign progression marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" campaign-progression.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Campaign progression script errors::$message"
+            exit 1
+          fi
