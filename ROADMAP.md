@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.59
+## Current build: 0.60
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -64,6 +64,19 @@
 - [x] 0.58 Multi-scale world regeneration tests and large-seed stress coverage
 - [x] 0.59 Procedural Generation 2.0 integration/polish pass and performance gates
 
+## Major World & Content Expansion — 0.60–0.69
+
+- [x] 0.60 Ashen Fen and Frostmere biome expansion across climate mapping, region templates, content profiles and deterministic theme palettes
+- [ ] 0.61 Data-driven regional encounter archetypes and deterministic encounter composition plans
+- [ ] 0.62 Regional loot tables, rarity bands and progression-aware reward plans
+- [ ] 0.63 Expanded minor POI archetypes and theme-aware placement rules
+- [ ] 0.64 Settlement archetypes, services and deterministic population profiles
+- [ ] 0.65 Regional dungeon entrance families and dungeon-theme routing
+- [ ] 0.66 World-event archetypes with deterministic regional scheduling/state IDs
+- [ ] 0.67 Lore discovery catalog: shrines, inscriptions, relic records and region history fragments
+- [ ] 0.68 Content-density balancing across biomes/progression bands with large-world coverage gates
+- [ ] 0.69 Major World & Content Expansion integration/polish pass
+
 ## Verified architecture foundations
 
 - [x] RegionCatalog is the single data source for streamed authored region definitions and slots
@@ -77,7 +90,6 @@
 
 ## Later milestones
 
-- [ ] 0.60–0.69 Major world/content expansion
 - [ ] 0.70–0.79 Progression, magic, equipment and quest chains
 - [ ] 0.80–0.89 Full game progression and end-game structure
 - [ ] 0.90–0.99 Beta, optimization and polish
