@@ -51,3 +51,14 @@ jobs:
             echo "Region content profile errors detected"
             exit 1
           fi
+
+      - name: Verify route hierarchy gateways and shortcuts
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_route_planner_test.gd 2>&1 | tee world-routes.log
+          grep -q "WORLD_ROUTE_PLANNER_OK" world-routes.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" world-routes.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World route planner errors detected"
+            exit 1
+          fi
