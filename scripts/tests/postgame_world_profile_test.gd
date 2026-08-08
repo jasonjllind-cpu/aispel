@@ -2,14 +2,31 @@ extends SceneTree
 
 const GRAPH := preload("res://scripts/world/world_graph_generator.gd")
 const PROFILE := preload("res://scripts/progression/postgame_world_profile.gd")
+const BOSSES := preload("res://scripts/progression/boss_progression_contract.gd")
 const WORLD_STATE_SCRIPT := preload("res://scripts/core/world_state.gd")
 
 func _init() -> void:
-	var boss_state: Dictionary = {"guardian_victory_ids": ["boss_victory:g1", "boss_victory:g2", "boss_victory:g3"]}
+	var boss_state: Dictionary = BOSSES.empty_state()
+	var guardian_ids: Array[String] = ["hollow_king", "stormbound_titan", "frostbound_wyrm"]
+	var sequence: int = 1
+	for boss_id in guardian_ids:
+		var result: Dictionary = BOSSES.record_authoritative_victory(boss_state, boss_id, 1, 1, sequence)
+		if result.get("ok", false) != true:
+			_fail("Could not build canonical three-guardian fixture: %s" % str(result.get("error", "")))
+			return
+		boss_state = result.get("state", {}) as Dictionary
+		sequence += 1
+	if int(boss_state.get("guardian_count", 0)) != 3:
+		_fail("Canonical boss fixture did not reach three guardians")
+		return
+
 	var choices: Array[String] = ["choice:roadfolk_covenant", "choice:blackwood_mercy"]
 	var moon: Dictionary = PROFILE.build_profile(85082601, "ending:moon_restored", choices, boss_state, 4)
 	if not PROFILE.validate_profile(moon):
 		_fail("Moon postgame profile is invalid")
+		return
+	if int(moon.get("guardian_count", 0)) != 3 or not (moon.get("modifier_ids", []) as Array).has("world_modifier:guardian_echoes"):
+		_fail("Postgame profile did not consume canonical boss guardian state")
 		return
 	var moon_repeat: Dictionary = PROFILE.build_profile(85082601, "ending:moon_restored", choices, boss_state, 4)
 	if var_to_str(moon) != var_to_str(moon_repeat):
