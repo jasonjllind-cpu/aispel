@@ -19,6 +19,21 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Check distribution planner syntax
+        shell: bash
+        run: |
+          set +e
+          godot --headless --path . --check-only --script res://scripts/world/world_distribution_planner.gd 2>&1 | tee distribution-syntax.log
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$STATUS" -ne 0 ]; then
+            while IFS= read -r line; do
+              SAFE_LINE="${line//'%'/'%25'}"
+              echo "::error title=Distribution planner syntax::$SAFE_LINE"
+            done < distribution-syntax.log
+            exit "$STATUS"
+          fi
+
       - name: Verify macro graph determinism and connectivity
         shell: bash
         run: |
