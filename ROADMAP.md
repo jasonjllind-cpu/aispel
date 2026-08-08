@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.81
+## Current build: 0.89
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -94,14 +94,27 @@
 
 - [x] 0.80 Data-driven campaign milestone graph, chapter gates and stable ending prerequisites
 - [x] 0.81 End-game region access model connected to campaign, world graph and exploration milestones
-- [ ] 0.82 Boss progression tiers, guardian milestones and authoritative victory-state contracts
-- [ ] 0.83 Relic/key objective model for deterministic end-game access and recovery after reload
-- [ ] 0.84 Faction/choice consequence layer driving mutually compatible ending routes
-- [ ] 0.85 Persistent post-game world-state profile and deterministic changed-world modifiers
-- [ ] 0.86 Authoritative co-op campaign/end-game state replication and late-join reconstruction
-- [ ] 0.87 Campaign/end-game save migration and corruption recovery across version changes
-- [ ] 0.88 Full-game progression balance, seed coverage and long-session stress gates
-- [ ] 0.89 Full Game Progression & End-game integration/polish and release-candidate gameplay gate
+- [x] 0.82 Boss progression tiers, guardian milestones and authoritative victory-state contracts
+- [x] 0.83 Relic/key objective model for deterministic end-game access and recovery after reload
+- [x] 0.84 Faction/choice consequence layer driving mutually compatible ending routes
+- [x] 0.85 Persistent post-game world-state profile and deterministic changed-world modifiers
+- [x] 0.86 Authoritative co-op campaign/end-game state replication and late-join reconstruction
+- [x] 0.87 Campaign/end-game save migration and corruption recovery across version changes
+- [x] 0.88 Full-game progression balance, seed coverage and long-session stress gates
+- [x] 0.89 Full Game Progression & End-game integration/polish and release-candidate gameplay gate
+
+## Beta, Optimization & Polish — 0.90–0.99
+
+- [ ] 0.90 Runtime performance telemetry, budgets and automated regression gates
+- [ ] 0.91 Streaming, memory, pooling and scene-tree optimization against measured budgets
+- [ ] 0.92 Co-op soak, reconnect, late-join reliability and authority hardening
+- [ ] 0.93 Save/backup/recovery/migration soak and destructive-failure coverage
+- [ ] 0.94 Combat, loot and progression balance pass with deterministic balance regression coverage
+- [ ] 0.95 UI/UX, controls, settings and accessibility foundation
+- [ ] 0.96 Visual/audio atmosphere polish and scalable quality presets
+- [ ] 0.97 Content coverage, soft-lock prevention and quest/end-game seed sweeps
+- [ ] 0.98 Export/release pipeline, build metadata and packaged-build smoke testing
+- [ ] 0.99 Release-candidate freeze with full regression, soak, performance and gameplay gates
 
 ## Verified architecture foundations
 
@@ -111,12 +124,12 @@
 - [x] Runtime generation counters and generation budget
 - [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
 - [x] Same world seed reproduces the same terrain and procedural exploration content
-- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion, progression and campaign regression tests
+- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion, progression, campaign and end-game regression tests
+- [x] Full end-game seed stress, save migration, late-join and release-candidate gameplay gates
 - [x] Main-scene headless Godot smoke test
 
-## Later milestones
+## Release
 
-- [ ] 0.90–0.99 Beta, optimization and polish
 - [ ] 1.00 Release target
 
 Architecture principle: persistent state is stored as stable IDs and data, not scene-tree objects. Static world generation is deterministic from the world seed. Generation data is kept separate from render and physics instances. Major landmarks remain authored/module-based while terrain, nature and minor exploration content can be generated procedurally. Network authority owns mutable gameplay state while clients may reconstruct deterministic static world data.
