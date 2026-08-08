@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.08
+## Current build: 0.12
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -10,16 +10,19 @@
 - [x] 0.06 Combat, health, enemy attacks and death
 - [x] 0.07 Inventory UI and item database
 - [x] 0.08 Equipment, weapon/armor stats and first low-poly humanoid art pass
+- [x] 0.09 Retro pixel material set and stronger fantasy palette
+- [x] 0.10 World art pass: curved road, layered landscape, mountain silhouettes, vegetation and props
+- [x] 0.11 Landmark pass: ruined keep, gate towers, watchtower, moon shrine and torch lighting
+- [x] 0.12 Character art and procedural movement animation polish
 
-## Next large package: 0.09–0.12 — Graphics & World Art Pass
+## Next large package: 0.13–0.16 — Exploration Systems
 
-- [ ] Replace blocky terrain with a more natural low-poly landscape
-- [ ] Stronger PS2/early-PC fantasy art direction
-- [ ] Better trees, rocks, grass and landmark silhouettes
-- [ ] Rebuild ruin/castle geometry into recognizable architecture
-- [ ] Better player and enemy silhouettes, simple movement/attack animation polish
-- [ ] Improve sky, moon, fog, lighting and particles
-- [ ] Add environmental props and visual storytelling
+- [ ] Discoverable named locations and exploration notifications
+- [ ] Small secrets, locked interactions and use for the Old Key
+- [ ] Better loot presentation and treasure containers
+- [ ] Checkpoint / shrine interaction and respawn progression
+- [ ] More world encounters without turning the game into survival micromanagement
+- [ ] First small interior / crypt test area
 
 ## Later milestones
 
