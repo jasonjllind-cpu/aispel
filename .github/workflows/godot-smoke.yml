@@ -113,6 +113,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify full session persistence
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/game_persistence_system_test.gd 2>&1 | tee godot-session-save.log
+          grep -q "GAME_PERSISTENCE_OK" godot-session-save.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-session-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Full session persistence errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
