@@ -5,6 +5,9 @@ const DUNGEON_GENERATOR_SCRIPT := preload("res://scripts/dungeon/dungeon_generat
 const DUNGEON_SYSTEM_SCRIPT := preload("res://scripts/dungeon/dungeon_system.gd")
 
 func _init() -> void:
+	process_frame.connect(_run, CONNECT_ONE_SHOT)
+
+func _run() -> void:
 	var world := Node3D.new()
 	world.name = "DungeonRuntimeWorld"
 	get_root().add_child(world)
@@ -15,8 +18,7 @@ func _init() -> void:
 	get_root().add_child(world_state)
 
 	# Keep the system outside the SceneTree in this contract test. This avoids
-	# scheduling its production deferred installer while we inject dependencies
-	# explicitly, and prevents shutdown-time lifecycle callbacks from racing quit().
+	# scheduling its production deferred installer while dependencies are injected.
 	var system := Node.new()
 	system.set_script(DUNGEON_SYSTEM_SCRIPT)
 	system.set("world", world)
@@ -25,14 +27,17 @@ func _init() -> void:
 	generator.configure(int(world_state.get("world_seed")))
 	system.set("generator", generator)
 
-	if not _test_portal(system, world):
-		quit(1)
-		return
-	if not _test_instance(system, world_state):
+	var passed := _test_portal(system, world) and _test_instance(system, world_state)
+	if not passed:
+		system.free()
 		quit(1)
 		return
 
 	print("DUNGEON_RUNTIME_OK dungeon=moon_catacombs")
+	system.free()
+	world.queue_free()
+	world_state.queue_free()
+	await process_frame
 	quit(0)
 
 func _test_portal(system: Node, world: Node3D) -> bool:
