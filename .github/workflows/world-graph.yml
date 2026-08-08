@@ -67,6 +67,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify regional content themes
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/region_content_theme_test.gd 2>&1 | tee region-theme.log
+          grep -q "REGION_CONTENT_THEME_OK" region-theme.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" region-theme.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Regional content theme errors detected"
+            exit 1
+          fi
+
       - name: Verify route hierarchy gateways and shortcuts
         shell: bash
         run: |
