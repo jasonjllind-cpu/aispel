@@ -1,0 +1,31 @@
+name: Progression Save Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: progression-save-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  progression-save:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify save migration and balance coverage
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/progression_save_migration_test.gd 2>&1 | tee progression-save.log
+          grep -q "PROGRESSION_SAVE_MIGRATION_OK" progression-save.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Progression save errors detected"
+            exit 1
+          fi
