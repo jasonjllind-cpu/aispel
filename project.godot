@@ -5,7 +5,7 @@ config_version=5
 
 [application]
 
-config/name="Retro Fantasy Survival"
+config/name="Retro Fantasy Exploration"
 run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 config/icon="res://icon.svg"
@@ -47,6 +47,18 @@ sprint={
 interact={
 "deadzone": 0.5,
 "events": [Object(InputEventKey,"physical_keycode":69)]
+}
+attack={
+"deadzone": 0.5,
+"events": [Object(InputEventMouseButton,"button_index":1)]
+}
+inventory={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":73)]
+}
+equip_next={
+"deadzone": 0.5,
+"events": [Object(InputEventKey,"physical_keycode":82)]
 }
 
 [rendering]
