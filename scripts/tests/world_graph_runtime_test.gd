@@ -41,6 +41,21 @@ func _init() -> void:
 	if region.position != generated.get("center", Vector3.ZERO):
 		_fail(runtime, root, "Loaded graph region did not use deterministic world center")
 		return
+	if int(region.get_meta("graph_depth", -1)) != int(generated.get("graph_depth", -1)):
+		_fail(runtime, root, "Loaded graph region lost graph depth metadata")
+		return
+	if str(region.get_meta("progression_band", "")) != str(generated.get("progression_band", "")):
+		_fail(runtime, root, "Loaded graph region lost progression band metadata")
+		return
+	if str(region.get_meta("distribution_role", "")) != str(generated.get("distribution_role", "")):
+		_fail(runtime, root, "Loaded graph region lost distribution role metadata")
+		return
+	if str(region.get_meta("distribution_id", "")) != str(generated.get("distribution_id", "")):
+		_fail(runtime, root, "Loaded graph region lost distribution ID metadata")
+		return
+	if str(region.get_meta("content_profile_id", "")) != str(generated.get("content_profile_id", "")):
+		_fail(runtime, root, "Loaded graph region lost content profile metadata")
+		return
 	var loaded_ids: Array[String] = runtime.call("loaded_region_ids")
 	if loaded_ids != [stable_id]:
 		_fail(runtime, root, "Loaded graph region registry mismatch")
@@ -55,7 +70,7 @@ func _init() -> void:
 		_fail(runtime, root, "Generated graph region registry did not unload")
 		return
 
-	print("WORLD_GRAPH_RUNTIME_OK region=%s biome=%s" % [stable_id, str(generated.get("biome", ""))])
+	print("WORLD_GRAPH_RUNTIME_OK region=%s biome=%s role=%s" % [stable_id, str(generated.get("biome", "")), str(generated.get("distribution_role", ""))])
 	runtime.free()
 	root.queue_free()
 	quit(0)
