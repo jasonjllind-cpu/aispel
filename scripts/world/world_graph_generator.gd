@@ -3,8 +3,9 @@ class_name WorldGraphGenerator
 
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const TEMPLATE_CATALOG := preload("res://scripts/world/region_template_catalog.gd")
+const CONTENT_PROFILE_CATALOG := preload("res://scripts/world/region_content_profile_catalog.gd")
 
-const GRAPH_FORMAT_VERSION: int = 2
+const GRAPH_FORMAT_VERSION: int = 3
 const REGION_SPACING: float = 170.0
 const DEFAULT_NODE_COUNT: int = 18
 const START_REGION_ID: String = "region:starting_valley"
@@ -223,10 +224,14 @@ func _annotate_topology(nodes: Array[Dictionary], edges: Array[Dictionary], star
 		var neighbours: Array = (adjacency.get(stable_id, []) as Array).duplicate()
 		var depth: int = int(depths.get(stable_id, -1))
 		var band: String = _progression_band_for_depth(depth)
+		var biome_id: String = str(node.get("biome", "green_highlands"))
+		var content_profile: Dictionary = CONTENT_PROFILE_CATALOG.build_profile(biome_id, band, depth)
 		node["neighbor_ids"] = neighbours
 		node["degree"] = neighbours.size()
 		node["graph_depth"] = depth
 		node["progression_band"] = band
+		node["content_profile_id"] = str(content_profile.get("profile_id", ""))
+		node["content_profile"] = content_profile
 		max_depth = maxi(max_depth, depth)
 		band_counts[band] = int(band_counts.get(band, 0)) + 1
 		annotated_nodes.append(node)
