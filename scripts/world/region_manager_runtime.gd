@@ -2,8 +2,11 @@ extends "res://scripts/world/region_manager.gd"
 
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const RUNTIME_BIOME_CATALOG := preload("res://scripts/world/biome_catalog.gd")
+const LANDMARK_BUILDER_SCRIPT := preload("res://scripts/world/authored_landmark_builder.gd")
 const CATALOG_LOAD_RADIUS: float = 145.0
 const CATALOG_UNLOAD_RADIUS: float = 185.0
+
+var landmark_builder: RefCounted = LANDMARK_BUILDER_SCRIPT.new()
 
 func _update_streaming() -> void:
 	var player: Node3D = _get_player()
@@ -52,10 +55,9 @@ func _load_region(definition: Dictionary) -> void:
 	regions_root.add_child(region_node)
 	loaded_regions[region_id] = region_node
 
-	# RegionManager owns only lifecycle and authored landmark modules.
-	# Terrain, roads, vegetation, minor POIs, encounters and loot are generated
-	# by their dedicated deterministic systems.
-	_build_region_landmark(region_node, region_id, biome)
+	# RegionManager owns lifecycle only. Authored landmark geometry is delegated
+	# to a reusable module; generated terrain/exploration use separate systems.
+	landmark_builder.call("build_landmark", region_node, region_id, biome)
 
 func _unload_region(region_id: String) -> void:
 	# Return reusable terrain chunks to the generator pool before the region
