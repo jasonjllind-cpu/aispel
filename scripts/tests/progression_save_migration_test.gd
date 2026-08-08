@@ -134,11 +134,12 @@ func _validate_balance_coverage() -> bool:
 		if weapon.is_empty():
 			return _fail("Balance equipment failed to roll at level %d" % level)
 		build = BUILD.equip(build, weapon, level)
+		var armor: Dictionary = {}
 		if level >= 12:
-			var armor: Dictionary = EQUIPMENT.roll_item("equipment:frostmere_mail", level, 78082601, "balance:%d" % level, 1)
-			build = BUILD.equip(build, armor, level)
+			armor = EQUIPMENT.roll_item("equipment:frostmere_mail", level, 78082601, "balance:%d" % level, 1)
 		elif level >= 4:
-			var armor: Dictionary = EQUIPMENT.roll_item("equipment:warden_mail", level, 78082601, "balance:%d" % level, 1)
+			armor = EQUIPMENT.roll_item("equipment:warden_mail", level, 78082601, "balance:%d" % level, 1)
+		if not armor.is_empty():
 			build = BUILD.equip(build, armor, level)
 
 		var attributes: Dictionary = {
