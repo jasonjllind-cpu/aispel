@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.20
+## Current build: 0.24
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -22,26 +22,28 @@
 - [x] 0.18 Distinct Blackwood, Windscar Highlands and Veilmoor biome regions
 - [x] 0.19 Connected routes, regional landmarks and encounter profiles
 - [x] 0.20 Global WorldState foundation for deterministic seeds, persistence and future multiplayer authority
+- [x] 0.21 Player-selectable world seeds, random seeds and generation namespaces
+- [x] 0.22 Deterministic noise-based terrain data with biome-driven height character
+- [x] 0.23 Reusable terrain chunks with generation data separated from render and collision instances
+- [x] 0.24 Deterministic biome-map sampling, blended biome transitions and reserved authored landmark slots
 
-## Next large package: 0.21–0.24 — World Generator 1.0
-
-- [ ] Player-selectable / generated world seed
-- [ ] Deterministic generation namespaces per region and generation layer
-- [ ] Noise-based terrain height data rather than flat region platforms
-- [ ] Biome-map generation and biome transition rules
-- [ ] Generated terrain mesh with reusable chunk data
-- [ ] Separate generation data from render/physics instances
-- [ ] Chunk lifecycle ready for background generation and pooling
-- [ ] Preserve authored landmark placement slots inside generated regions
-
-## 0.25–0.29 — Procedural Exploration
+## Next large package: 0.25–0.29 — Procedural Exploration
 
 - [ ] Procedural forests and vegetation using MultiMesh where appropriate
 - [ ] Procedural roads connecting landmarks and region exits
 - [ ] Placement rules for minor ruins, camps, cave mouths and secrets
 - [ ] Deterministic encounter and loot placement
 - [ ] Point-of-interest spacing and sightline rules so exploration feels intentional
-- [ ] World regeneration from the same seed produces the same world
+- [ ] Move streamed region content toward reusable authored modules instead of manager-owned geometry
+- [ ] World regeneration from the same seed produces the same world content, not only the same terrain
+
+## Foundation targets before 0.30
+
+- [ ] RegionCatalog as the single data source for region definitions and authored slots
+- [ ] Generation job queue interface for future threaded/background chunk-data generation
+- [ ] Chunk pool lifecycle wired into region unload/reload
+- [ ] Runtime performance counters and generation budget
+- [ ] Stable generated entity IDs for vegetation, POIs, encounters and loot
 
 ## Later milestones
 
@@ -56,6 +58,6 @@
 - [ ] 0.90–0.99 Beta, optimization and polish
 - [ ] 1.00 Release target
 
-Architecture principle: persistent state is stored as stable IDs and data, not scene-tree objects. Static world generation is deterministic from the world seed. Major landmarks remain authored/module-based while terrain, nature and minor exploration content can be generated procedurally.
+Architecture principle: persistent state is stored as stable IDs and data, not scene-tree objects. Static world generation is deterministic from the world seed. Generation data is kept separate from render and physics instances. Major landmarks remain authored/module-based while terrain, nature and minor exploration content can be generated procedurally.
 
 Design principle: exploration first, light survival, memorable landmarks, mysterious retro fantasy atmosphere.
