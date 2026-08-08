@@ -1,0 +1,40 @@
+name: Content Expansion Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: content-expansion-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  content-expansion:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify world biome expansion
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_content_expansion_test.gd 2>&1 | tee world-content-expansion.log
+          grep -q "WORLD_CONTENT_EXPANSION_OK" world-content-expansion.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" world-content-expansion.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
+
+      - name: Verify regional encounter plans
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/regional_encounter_plan_test.gd 2>&1 | tee regional-encounters.log
+          grep -q "REGIONAL_ENCOUNTER_PLAN_OK" regional-encounters.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" regional-encounters.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
