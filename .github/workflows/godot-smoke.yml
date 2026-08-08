@@ -80,6 +80,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify dungeon foundation
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/dungeon_foundation_test.gd 2>&1 | tee godot-dungeon.log
+          grep -q "DUNGEON_FOUNDATION_OK" godot-dungeon.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-dungeon.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Dungeon foundation errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
