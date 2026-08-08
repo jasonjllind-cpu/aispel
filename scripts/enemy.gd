@@ -29,16 +29,16 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 
 	if target == null or not is_instance_valid(target):
-		var players := get_tree().get_nodes_in_group("player")
-		if players.size() > 0:
-			target = players[0]
+		var players: Array[Node] = get_tree().get_nodes_in_group("player")
+		if players.size() > 0 and players[0] is Node3D:
+			target = players[0] as Node3D
 
 	if target != null and stagger_timer <= 0.0:
-		var offset := target.global_position - global_position
+		var offset: Vector3 = target.global_position - global_position
 		offset.y = 0.0
-		var distance := offset.length()
+		var distance: float = offset.length()
 		if distance <= detection_range and distance > stop_range:
-			var dir := offset.normalized()
+			var dir: Vector3 = offset.normalized()
 			velocity.x = dir.x * move_speed
 			velocity.z = dir.z * move_speed
 			look_at(global_position + dir, Vector3.UP)
@@ -78,8 +78,9 @@ func receive_damage(amount: int, attacker: Node = null) -> void:
 	health -= amount
 	stagger_timer = 0.22
 	if attacker is Node3D:
-		target = attacker
-		var push := global_position - attacker.global_position
+		var attacker_3d := attacker as Node3D
+		target = attacker_3d
+		var push: Vector3 = global_position - attacker_3d.global_position
 		push.y = 0.0
 		if push.length() > 0.01:
 			push = push.normalized()
@@ -100,7 +101,7 @@ func _flash_hit() -> void:
 func _die() -> void:
 	dead = true
 	remove_from_group("enemy")
-	var world := get_parent()
+	var world: Node = get_parent()
 	if world != null and world.has_method("spawn_combat_loot"):
 		world.spawn_combat_loot(global_position)
 	var visual := get_node_or_null("Visual") as Node3D
