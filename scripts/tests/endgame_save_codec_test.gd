@@ -28,7 +28,7 @@ func _init() -> void:
 	if not CODEC.validate(encoded):
 		_fail("Current endgame save payload is invalid")
 		return
-	if var_to_str(CODEC.decode(encoded)) != var_to_str(snapshot):
+	if CODEC.decode(encoded) != snapshot:
 		_fail("Current endgame save did not roundtrip")
 		return
 
@@ -44,7 +44,7 @@ func _init() -> void:
 		_fail("Legacy endgame save did not migrate to current version")
 		return
 	var migrated_snapshot: Dictionary = CODEC.decode(migrated)
-	if var_to_str(migrated_snapshot) != var_to_str(snapshot):
+	if migrated_snapshot != snapshot:
 		_fail("Legacy migration changed shared endgame state")
 		return
 
@@ -62,7 +62,7 @@ func _init() -> void:
 	if str(recovered.get("recovery_reason", "")) != "checksum_mismatch":
 		_fail("Corruption recovery did not report checksum mismatch")
 		return
-	if var_to_str(CODEC.decode(recovered)) != var_to_str(snapshot):
+	if CODEC.decode(recovered) != snapshot:
 		_fail("Recovery altered trusted deterministic baseline")
 		return
 
