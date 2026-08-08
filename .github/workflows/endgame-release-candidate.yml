@@ -1,0 +1,71 @@
+name: Endgame Release Candidate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: endgame-release-candidate-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release-candidate:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify endgame balance and repeated session roundtrips
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/endgame_balance_stress_test.gd 2>&1 | tee endgame-balance-stress.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 40 endgame-balance-stress.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame balance stress failure::$message"
+            exit "$status"
+          fi
+          grep -q "ENDGAME_BALANCE_STRESS_OK" endgame-balance-stress.log
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-balance-stress.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then echo "::error title=Endgame balance stress script errors::$errors"; exit 1; fi
+
+      - name: Verify unified endgame progression bundle
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/endgame_progression_bundle_test.gd 2>&1 | tee endgame-progression-bundle.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 40 endgame-progression-bundle.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame progression bundle failure::$message"
+            exit "$status"
+          fi
+          grep -q "ENDGAME_PROGRESSION_BUNDLE_OK" endgame-progression-bundle.log
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-progression-bundle.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then echo "::error title=Endgame progression bundle script errors::$errors"; exit 1; fi
+
+      - name: Verify release candidate gameplay path
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/endgame_release_candidate_test.gd 2>&1 | tee endgame-release-candidate.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 50 endgame-release-candidate.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame release candidate failure::$message"
+            exit "$status"
+          fi
+          grep -q "ENDGAME_RELEASE_CANDIDATE_OK" endgame-release-candidate.log
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-release-candidate.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then echo "::error title=Endgame release candidate script errors::$errors"; exit 1; fi
