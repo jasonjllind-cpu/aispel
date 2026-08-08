@@ -25,9 +25,7 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/player_progression_state_test.gd 2>&1 | tee player-progression.log
           grep -q "PLAYER_PROGRESSION_STATE_OK" player-progression.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" player-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then
-            exit 1
-          fi
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" player-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
 
       - name: Verify data-driven spell catalog
         shell: bash
@@ -35,9 +33,7 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/spell_catalog_test.gd 2>&1 | tee spell-catalog.log
           grep -q "SPELL_CATALOG_OK" spell-catalog.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" spell-catalog.log | grep -v 'ERROR: Parameter "m" is null\.'; then
-            exit 1
-          fi
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" spell-catalog.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
 
       - name: Verify deterministic equipment progression
         shell: bash
@@ -69,9 +65,7 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/quest_chain_catalog_test.gd 2>&1 | tee quest-chain.log
           grep -q "QUEST_CHAIN_CATALOG_OK" quest-chain.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" quest-chain.log | grep -v 'ERROR: Parameter "m" is null\.'; then
-            exit 1
-          fi
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" quest-chain.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
 
       - name: Verify magic school progression
         shell: bash
@@ -79,6 +73,12 @@ jobs:
           set -o pipefail
           godot --headless --path . --script res://scripts/tests/magic_school_progression_test.gd 2>&1 | tee magic-school.log
           grep -q "MAGIC_SCHOOL_PROGRESSION_OK" magic-school.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" magic-school.log | grep -v 'ERROR: Parameter "m" is null\.'; then
-            exit 1
-          fi
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" magic-school.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify regional progression gates
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/regional_progression_gate_test.gd 2>&1 | tee regional-progression.log
+          grep -q "REGIONAL_PROGRESSION_GATE_OK" regional-progression.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" regional-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
