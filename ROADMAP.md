@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.76
+## Current build: 0.79
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -86,9 +86,9 @@
 - [x] 0.74 Magic-school progression, unlocks and world/quest discovery integration
 - [x] 0.75 Regional progression gates and rewards connected to encounters, dungeons and exploration content
 - [x] 0.76 Character build/loadout model integrating equipment, magic and derived combat stats
-- [ ] 0.77 Authoritative co-op replication for progression, equipment, spells and quest-chain state
-- [ ] 0.78 Save migration, balance coverage and end-to-end progression regression gates
-- [ ] 0.79 Progression/Magic/Equipment/Quest Chains integration and polish pass
+- [x] 0.77 Authoritative co-op replication for progression, equipment, spells and quest-chain state
+- [x] 0.78 Save migration, balance coverage and end-to-end progression regression gates
+- [x] 0.79 Progression/Magic/Equipment/Quest Chains integration and polish pass
 
 ## Verified architecture foundations
 
