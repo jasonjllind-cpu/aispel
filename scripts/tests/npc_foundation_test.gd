@@ -74,7 +74,12 @@ func _test_headless_actor_spawn() -> bool:
 			printerr("Stable NPC ID mismatch for %s" % npc_id)
 			world.queue_free()
 			return false
-		if actor.get_node_or_null("CollisionShape3D") == null:
+		var has_collision := false
+		for child in actor.get_children():
+			if child is CollisionShape3D and (child as CollisionShape3D).shape != null:
+				has_collision = true
+				break
+		if not has_collision:
 			printerr("NPC collision missing for %s" % npc_id)
 			world.queue_free()
 			return false
