@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.58
+## Current build: 0.59
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -62,7 +62,7 @@
 - [x] 0.56 Streaming priority derived from graph topology, player route and generation budget
 - [x] 0.57 Deterministic landmark/settlement distribution constraints across the macro graph
 - [x] 0.58 Multi-scale world regeneration tests and large-seed stress coverage
-- [ ] 0.59 Procedural Generation 2.0 integration/polish pass and performance gates
+- [x] 0.59 Procedural Generation 2.0 integration/polish pass and performance gates
 
 ## Verified architecture foundations
 
