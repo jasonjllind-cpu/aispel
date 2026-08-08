@@ -4,9 +4,10 @@ class_name WorldGraphGenerator
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const TEMPLATE_CATALOG := preload("res://scripts/world/region_template_catalog.gd")
 
-const GRAPH_FORMAT_VERSION: int = 1
+const GRAPH_FORMAT_VERSION: int = 2
 const REGION_SPACING: float = 170.0
 const DEFAULT_NODE_COUNT: int = 18
+const START_REGION_ID: String = "region:starting_valley"
 const DIRECTIONS: Array[Vector2i] = [Vector2i(0, -1), Vector2i(1, 0), Vector2i(0, 1), Vector2i(-1, 0)]
 const ANCHOR_CELLS: Dictionary = {
 	"starting_valley": Vector2i(0, 0),
@@ -43,13 +44,17 @@ func generate_graph(target_node_count: int = DEFAULT_NODE_COUNT) -> Dictionary:
 
 	var nodes: Array[Dictionary] = _sorted_nodes(nodes_by_cell)
 	var edges: Array[Dictionary] = _build_edges(nodes_by_cell)
+	var topology: Dictionary = _annotate_topology(nodes, edges, START_REGION_ID)
 	return {
 		"format_version": GRAPH_FORMAT_VERSION,
 		"world_seed": world_seed,
 		"graph_seed": graph_seed(),
 		"region_spacing": REGION_SPACING,
-		"nodes": nodes,
-		"edges": edges,
+		"start_region_id": START_REGION_ID,
+		"max_graph_depth": int(topology.get("max_graph_depth", 0)),
+		"progression_band_counts": topology.get("progression_band_counts", {}).duplicate(true),
+		"nodes": topology.get("nodes", nodes),
+		"edges": topology.get("edges", edges),
 		"anchor_count": ANCHOR_CELLS.size(),
 		"generated_count": maxi(0, nodes.size() - ANCHOR_CELLS.size())
 	}
@@ -181,6 +186,76 @@ func _build_edges(nodes_by_cell: Dictionary) -> Array[Dictionary]:
 			})
 	edges.sort_custom(_edge_less)
 	return edges
+
+func _annotate_topology(nodes: Array[Dictionary], edges: Array[Dictionary], start_id: String) -> Dictionary:
+	var adjacency: Dictionary = {}
+	for node in nodes:
+		adjacency[str(node.get("stable_id", ""))] = []
+	for edge in edges:
+		var from_id: String = str(edge.get("from", ""))
+		var to_id: String = str(edge.get("to", ""))
+		if adjacency.has(from_id) and adjacency.has(to_id):
+			(adjacency[from_id] as Array).append(to_id)
+			(adjacency[to_id] as Array).append(from_id)
+	for region_id in adjacency.keys():
+		(adjacency[region_id] as Array).sort()
+
+	var depths: Dictionary = {}
+	if adjacency.has(start_id):
+		depths[start_id] = 0
+		var queue: Array[String] = [start_id]
+		while not queue.is_empty():
+			var current: String = queue.pop_front()
+			var next_depth: int = int(depths[current]) + 1
+			for neighbour_value in adjacency[current] as Array:
+				var neighbour: String = str(neighbour_value)
+				if depths.has(neighbour):
+					continue
+				depths[neighbour] = next_depth
+				queue.append(neighbour)
+
+	var max_depth: int = 0
+	var band_counts: Dictionary = {"heartland": 0, "frontier": 0, "wilds": 0}
+	var annotated_nodes: Array[Dictionary] = []
+	for source_node in nodes:
+		var node: Dictionary = source_node.duplicate(true)
+		var stable_id: String = str(node.get("stable_id", ""))
+		var neighbours: Array = (adjacency.get(stable_id, []) as Array).duplicate()
+		var depth: int = int(depths.get(stable_id, -1))
+		var band: String = _progression_band_for_depth(depth)
+		node["neighbor_ids"] = neighbours
+		node["degree"] = neighbours.size()
+		node["graph_depth"] = depth
+		node["progression_band"] = band
+		max_depth = maxi(max_depth, depth)
+		band_counts[band] = int(band_counts.get(band, 0)) + 1
+		annotated_nodes.append(node)
+	annotated_nodes.sort_custom(_node_less)
+
+	var annotated_edges: Array[Dictionary] = []
+	for source_edge in edges:
+		var edge: Dictionary = source_edge.duplicate(true)
+		var from_depth: int = int(depths.get(str(edge.get("from", "")), -1))
+		var to_depth: int = int(depths.get(str(edge.get("to", "")), -1))
+		var route_depth: int = maxi(from_depth, to_depth)
+		edge["graph_depth"] = route_depth
+		edge["progression_band"] = _progression_band_for_depth(route_depth)
+		annotated_edges.append(edge)
+	annotated_edges.sort_custom(_edge_less)
+
+	return {
+		"nodes": annotated_nodes,
+		"edges": annotated_edges,
+		"max_graph_depth": max_depth,
+		"progression_band_counts": band_counts
+	}
+
+func _progression_band_for_depth(depth: int) -> String:
+	if depth <= 1:
+		return "heartland"
+	if depth <= 3:
+		return "frontier"
+	return "wilds"
 
 func _cell_less(a: Vector2i, b: Vector2i) -> bool:
 	if a.y == b.y:
