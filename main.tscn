@@ -1,4 +1,4 @@
-[gd_scene load_steps=12 format=3]
+[gd_scene load_steps=13 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
@@ -11,12 +11,16 @@
 [ext_resource type="Script" path="res://scripts/npc/merchant_system.gd" id="9_merchant_system"]
 [ext_resource type="Script" path="res://scripts/dungeon/dungeon_system.gd" id="10_dungeon_system"]
 [ext_resource type="Script" path="res://scripts/core/game_persistence_system.gd" id="11_persistence"]
+[ext_resource type="Script" path="res://scripts/network/network_session.gd" id="12_network"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_world")
 
 [node name="GamePersistenceSystem" type="Node" parent="."]
 script = ExtResource("11_persistence")
+
+[node name="NetworkSession" type="Node" parent="."]
+script = ExtResource("12_network")
 
 [node name="ExplorationSystem" type="Node" parent="."]
 script = ExtResource("2_exploration")
