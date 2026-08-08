@@ -18,7 +18,7 @@ func load_world(world_state: Node, slot_id: String = DEFAULT_SLOT) -> Dictionary
 	if world_state == null or not world_state.has_method("restore_snapshot"):
 		return _error("invalid_world_state", "WorldState does not expose restore_snapshot().")
 	var result: Dictionary = read_snapshot(slot_id)
-	if not bool(result.get("ok", false)):
+	if not result.get("ok", false):
 		return result
 	var snapshot_value: Variant = result.get("snapshot", {})
 	if not snapshot_value is Dictionary:
@@ -51,6 +51,7 @@ func write_snapshot(snapshot: Dictionary, slot_id: String = DEFAULT_SLOT) -> Dic
 	var json_text: String = JSON.stringify(envelope)
 	var final_path: String = slot_path(normalized_slot)
 	var temp_path: String = "%s.tmp" % final_path
+	var backup_path: String = "%s.bak" % final_path
 	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		return _error("write_error", "Could not open temporary save file for writing.")
@@ -60,20 +61,27 @@ func write_snapshot(snapshot: Dictionary, slot_id: String = DEFAULT_SLOT) -> Dic
 
 	# Verify exactly what reached disk before replacing the previous valid slot.
 	var verify_result: Dictionary = _read_envelope(temp_path)
-	if not bool(verify_result.get("ok", false)):
+	if not verify_result.get("ok", false):
 		DirAccess.remove_absolute(ProjectSettings.globalize_path(temp_path))
 		return verify_result
 
 	var absolute_final: String = ProjectSettings.globalize_path(final_path)
 	var absolute_temp: String = ProjectSettings.globalize_path(temp_path)
+	var absolute_backup: String = ProjectSettings.globalize_path(backup_path)
+	if FileAccess.file_exists(backup_path):
+		DirAccess.remove_absolute(absolute_backup)
 	if FileAccess.file_exists(final_path):
-		var remove_error: Error = DirAccess.remove_absolute(absolute_final)
-		if remove_error != OK:
+		var backup_error: Error = DirAccess.rename_absolute(absolute_final, absolute_backup)
+		if backup_error != OK:
 			DirAccess.remove_absolute(absolute_temp)
-			return _error("replace_error", "Could not replace previous save (%d)." % remove_error)
+			return _error("backup_error", "Could not protect previous save (%d)." % backup_error)
 	var rename_error: Error = DirAccess.rename_absolute(absolute_temp, absolute_final)
 	if rename_error != OK:
+		if FileAccess.file_exists(backup_path):
+			DirAccess.rename_absolute(absolute_backup, absolute_final)
 		return _error("rename_error", "Could not commit temporary save (%d)." % rename_error)
+	if FileAccess.file_exists(backup_path):
+		DirAccess.remove_absolute(absolute_backup)
 	return {
 		"ok": true,
 		"slot_id": normalized_slot,
@@ -86,7 +94,7 @@ func read_snapshot(slot_id: String = DEFAULT_SLOT) -> Dictionary:
 	var normalized_slot: String = _sanitize_slot_id(slot_id)
 	var path: String = slot_path(normalized_slot)
 	var result: Dictionary = _read_envelope(path)
-	if not bool(result.get("ok", false)):
+	if not result.get("ok", false):
 		return result
 	var envelope: Dictionary = result.get("envelope", {})
 	var payload: String = str(envelope.get("payload", ""))
@@ -104,9 +112,13 @@ func read_snapshot(slot_id: String = DEFAULT_SLOT) -> Dictionary:
 
 func delete_slot(slot_id: String = DEFAULT_SLOT) -> bool:
 	var path: String = slot_path(slot_id)
-	if not FileAccess.file_exists(path):
-		return true
-	return DirAccess.remove_absolute(ProjectSettings.globalize_path(path)) == OK
+	var temp_path: String = "%s.tmp" % path
+	var backup_path: String = "%s.bak" % path
+	var ok := true
+	for candidate in [path, temp_path, backup_path]:
+		if FileAccess.file_exists(candidate):
+			ok = DirAccess.remove_absolute(ProjectSettings.globalize_path(candidate)) == OK and ok
+	return ok
 
 func slot_exists(slot_id: String = DEFAULT_SLOT) -> bool:
 	return FileAccess.file_exists(slot_path(slot_id))
