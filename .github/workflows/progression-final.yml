@@ -23,22 +23,69 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
+          set +e
           timeout 30s godot --headless --path . --script res://scripts/tests/network_progression_replicator_test.gd 2>&1 | tee progression-networking.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 progression-networking.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression networking Godot failure::$message"
+            exit "$status"
+          fi
           grep -q "NETWORK_PROGRESSION_REPLICATOR_OK" progression-networking.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-networking.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-networking.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression networking script errors::$message"
+            exit 1
+          fi
 
       - name: Verify progression save migration and balance coverage
         shell: bash
         run: |
           set -o pipefail
+          set +e
           timeout 30s godot --headless --path . --script res://scripts/tests/progression_save_migration_test.gd 2>&1 | tee progression-save.log
-          grep -q "PROGRESSION_SAVE_MIGRATION_OK" progression-save.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 progression-save.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression save migration Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "PROGRESSION_SAVE_MIGRATION_OK" progression-save.log; then
+            message=$(tail -n 30 progression-save.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression save migration marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-save.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression save migration script errors::$message"
+            exit 1
+          fi
 
       - name: Verify progression integration and polish
         shell: bash
         run: |
           set -o pipefail
+          set +e
           timeout 30s godot --headless --path . --script res://scripts/tests/progression_integration_test.gd 2>&1 | tee progression-integration.log
-          grep -q "PROGRESSION_INTEGRATION_OK" progression-integration.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-integration.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 progression-integration.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression integration Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "PROGRESSION_INTEGRATION_OK" progression-integration.log; then
+            message=$(tail -n 30 progression-integration.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression integration marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-integration.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Progression integration script errors::$message"
+            exit 1
+          fi
