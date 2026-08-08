@@ -39,6 +39,24 @@ const BIOME_BASES: Dictionary = {
 		"danger": 0.52,
 		"secret_chance": 0.34,
 		"settlement_affinity": 0.18
+	},
+	"ashen_fen": {
+		"encounter_profile": "fen_reavers",
+		"encounter_budget": 3,
+		"poi_budget": 4,
+		"loot_tier": 2,
+		"danger": 0.57,
+		"secret_chance": 0.31,
+		"settlement_affinity": 0.22
+	},
+	"frostmere": {
+		"encounter_profile": "frostbound",
+		"encounter_budget": 3,
+		"poi_budget": 3,
+		"loot_tier": 2,
+		"danger": 0.61,
+		"secret_chance": 0.28,
+		"settlement_affinity": 0.20
 	}
 }
 
