@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3]
+[gd_scene load_steps=16 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
@@ -14,6 +14,7 @@
 [ext_resource type="Script" path="res://scripts/network/network_session.gd" id="12_network"]
 [ext_resource type="Script" path="res://scripts/network/network_command_router.gd" id="13_network_commands"]
 [ext_resource type="Script" path="res://scripts/network/network_player_manager.gd" id="14_network_players"]
+[ext_resource type="Script" path="res://scripts/network/network_world_state_replicator.gd" id="15_network_world"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_world")
@@ -29,6 +30,9 @@ script = ExtResource("13_network_commands")
 
 [node name="NetworkPlayerManager" type="Node" parent="."]
 script = ExtResource("14_network_players")
+
+[node name="NetworkWorldStateReplicator" type="Node" parent="."]
+script = ExtResource("15_network_world")
 
 [node name="ExplorationSystem" type="Node" parent="."]
 script = ExtResource("2_exploration")
