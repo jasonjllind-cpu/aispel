@@ -69,6 +69,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify Living World gameplay flow
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/living_world_flow_test.gd 2>&1 | tee godot-living-flow.log
+          grep -q "LIVING_WORLD_FLOW_OK" godot-living-flow.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-living-flow.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Living World gameplay flow errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
