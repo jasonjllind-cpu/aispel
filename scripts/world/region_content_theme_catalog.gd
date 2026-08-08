@@ -83,6 +83,46 @@ const THEMES: Dictionary = {
 		"loot_palette": ["bell_fragment", "grave_token", "old_relic"],
 		"landmark_palette": ["pale_shrine", "bell_ruin"],
 		"tags": ["moor", "bells", "fog"]
+	},
+	"cinder_march": {
+		"id": "cinder_march",
+		"biome": "ashen_fen",
+		"weight": 1.0,
+		"poi_palette": ["charred_watch", "sunk_kiln", "ember_camp"],
+		"encounter_palette": ["fen_reavers", "cinder_hounds"],
+		"loot_palette": ["ember_glass", "burnt_relic", "ancient_coin"],
+		"landmark_palette": ["charred_watch", "ash_shrine"],
+		"tags": ["fen", "ash", "fire", "ruins"]
+	},
+	"witchfire_bog": {
+		"id": "witchfire_bog",
+		"biome": "ashen_fen",
+		"weight": 0.72,
+		"poi_palette": ["witchfire_pool", "sunk_kiln", "bone_pier"],
+		"encounter_palette": ["fen_reavers", "bog_witches"],
+		"loot_palette": ["witch_ember", "grave_token", "old_relic"],
+		"landmark_palette": ["ash_shrine", "bone_pier"],
+		"tags": ["fen", "witch", "fire", "secret"]
+	},
+	"frozen_pilgrimage": {
+		"id": "frozen_pilgrimage",
+		"biome": "frostmere",
+		"weight": 1.0,
+		"poi_palette": ["frozen_waystone", "ice_tomb", "snowbound_camp"],
+		"encounter_palette": ["frostbound", "white_wolves"],
+		"loot_palette": ["frost_glass", "pilgrim_token", "old_relic"],
+		"landmark_palette": ["frozen_waystone", "ice_tomb"],
+		"tags": ["frost", "pilgrimage", "ancient", "open"]
+	},
+	"pale_lake": {
+		"id": "pale_lake",
+		"biome": "frostmere",
+		"weight": 0.70,
+		"poi_palette": ["ice_tomb", "frozen_boat", "wind_shelter"],
+		"encounter_palette": ["frostbound", "lake_wraiths"],
+		"loot_palette": ["frost_glass", "moon_shard", "drowned_relic"],
+		"landmark_palette": ["frozen_waystone", "frozen_boat"],
+		"tags": ["frost", "lake", "wraith", "vista"]
 	}
 }
 
