@@ -32,6 +32,12 @@ func _init() -> void:
 		_fail("Current endgame save did not roundtrip")
 		return
 
+	var invalid_world_snapshot: Dictionary = snapshot.duplicate(true)
+	invalid_world_snapshot["world_milestones"] = ["garbage:trusted_looking_value"]
+	if CODEC.validate_snapshot(invalid_world_snapshot) or not CODEC.encode(invalid_world_snapshot, 12).is_empty():
+		_fail("Invalid world milestone namespace was accepted by save boundary")
+		return
+
 	var legacy: Dictionary = CODEC.build_legacy_v1(snapshot, 7)
 	var migrated: Dictionary = CODEC.migrate(legacy)
 	if not CODEC.validate(migrated):
