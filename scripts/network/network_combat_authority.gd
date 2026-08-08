@@ -30,6 +30,19 @@ func _install() -> void:
 		if not world_replicator.is_connected("delta_applied", delta_callback):
 			world_replicator.connect("delta_applied", delta_callback)
 
+func _unhandled_input(event: InputEvent) -> void:
+	_resolve_dependencies()
+	if network_session == null or str(network_session.get("session_mode")) != "client":
+		return
+	if not event.is_action_pressed("attack"):
+		return
+	var players: Array[Node] = get_tree().get_nodes_in_group("player")
+	if players.is_empty() or not players[0] is Node3D:
+		return
+	var target_id: String = _nearest_attack_target_id(players[0] as Node3D)
+	if not target_id.is_empty():
+		request_local_attack(target_id)
+
 func request_local_attack(target_id: String) -> Dictionary:
 	_resolve_dependencies()
 	if target_id.is_empty():
@@ -97,6 +110,29 @@ func execute_attack(peer_id: int, target_id: String) -> Dictionary:
 		"target_health": target_health,
 		"dead": dead
 	}
+
+func _nearest_attack_target_id(player: Node3D) -> String:
+	var forward: Vector3 = -player.global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var best_id := ""
+	var best_distance: float = MAX_ATTACK_DISTANCE
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if not node is Node3D or not is_instance_valid(node):
+			continue
+		var stable_value: Variant = node.get("persistent_id")
+		if stable_value == null or str(stable_value).is_empty():
+			continue
+		var offset: Vector3 = (node as Node3D).global_position - player.global_position
+		offset.y = 0.0
+		var distance: float = offset.length()
+		if distance <= 0.01 or distance > best_distance:
+			continue
+		if forward.dot(offset.normalized()) < 0.20:
+			continue
+		best_distance = distance
+		best_id = str(stable_value)
+	return best_id
 
 func _on_authoritative_command(peer_id: int, action: String, payload: Dictionary) -> void:
 	if action != "attack":
