@@ -98,7 +98,7 @@ func generate_layout(dungeon_id: String) -> Dictionary:
 			"room_index": int(treasure_room.get("index", 0)),
 			"position": treasure_center + Vector3(0, 0.65, 0),
 			"item_name": str(definition.get("reward_item", "Moon Shard")),
-			"amount": 2
+			"amount": max(1, int(definition.get("reward_amount", 1)))
 		}
 	]
 
