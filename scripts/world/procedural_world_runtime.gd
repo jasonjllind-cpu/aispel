@@ -3,10 +3,13 @@ extends "res://scripts/world/procedural_world_system.gd"
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const RUNTIME_TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
 const MAX_POOLED_CHUNKS: int = 64
+const MAX_CACHED_CHUNKS: int = 96
 
 var chunk_pool: Array[Node3D] = []
 var chunk_pool_root: Node3D
 var pooled_reuses: int = 0
+var chunk_cache_order: Array[String] = []
+var chunk_cache_evictions: int = 0
 
 func _build_starting_valley_terrain() -> void:
 	if world == null or world.has_node("GeneratedStartingValley"):
@@ -52,12 +55,10 @@ func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_c
 		for chunk_x in range(min_coord, max_coord_exclusive):
 			var coord := Vector2i(chunk_x, chunk_z)
 			var cache_key: String = "%d:%s:%d:%d" % [_world_seed(), region_id, chunk_x, chunk_z]
-			var chunk_data: Dictionary
-			if chunk_data_cache.has(cache_key):
-				chunk_data = (chunk_data_cache[cache_key] as Dictionary).duplicate(true)
-			else:
+			var chunk_data: Dictionary = _cached_chunk_data(cache_key)
+			if chunk_data.is_empty():
 				chunk_data = generator.call("generate_chunk_data", region_id, biome_id, region_center, coord, reserved_slots)
-				chunk_data_cache[cache_key] = chunk_data.duplicate(true)
+				_store_chunk_data(cache_key, chunk_data)
 
 			var chunk: Node3D = _acquire_chunk(parent)
 			chunk.call("build_from_data", chunk_data)
@@ -104,6 +105,33 @@ func release_region_terrain(region_id: String) -> int:
 		released += 1
 	return released
 
+func clear_generation_cache() -> void:
+	chunk_data_cache.clear()
+	chunk_cache_order.clear()
+	chunk_cache_evictions = 0
+
+func _cached_chunk_data(cache_key: String) -> Dictionary:
+	var value: Variant = chunk_data_cache.get(cache_key)
+	if not value is Dictionary:
+		return {}
+	_touch_chunk_cache(cache_key)
+	return (value as Dictionary).duplicate(true)
+
+func _store_chunk_data(cache_key: String, chunk_data: Dictionary) -> void:
+	if cache_key.is_empty() or chunk_data.is_empty():
+		return
+	if not chunk_data_cache.has(cache_key):
+		while chunk_data_cache.size() >= MAX_CACHED_CHUNKS and not chunk_cache_order.is_empty():
+			var evicted_key: String = chunk_cache_order.pop_front()
+			if chunk_data_cache.erase(evicted_key):
+				chunk_cache_evictions += 1
+	chunk_data_cache[cache_key] = chunk_data.duplicate(true)
+	_touch_chunk_cache(cache_key)
+
+func _touch_chunk_cache(cache_key: String) -> void:
+	chunk_cache_order.erase(cache_key)
+	chunk_cache_order.append(cache_key)
+
 func _ensure_pool_root() -> void:
 	if is_instance_valid(chunk_pool_root):
 		return
@@ -120,5 +148,7 @@ func get_pool_stats() -> Dictionary:
 		"available": chunk_pool.size(),
 		"capacity": MAX_POOLED_CHUNKS,
 		"reuses": pooled_reuses,
-		"cached_chunk_data": chunk_data_cache.size()
+		"cached_chunk_data": chunk_data_cache.size(),
+		"chunk_cache_capacity": MAX_CACHED_CHUNKS,
+		"chunk_cache_evictions": chunk_cache_evictions
 	}
