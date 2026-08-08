@@ -13,6 +13,7 @@ var target: Node3D
 var health := 46
 var attack_timer := 0.0
 var stagger_timer := 0.0
+var walk_phase := 0.0
 var dead := false
 
 func _ready() -> void:
@@ -54,6 +55,42 @@ func _physics_process(delta: float) -> void:
 		velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
 
 	move_and_slide()
+	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
+	_animate_visual(delta, horizontal_speed > 0.20)
+
+func _animate_visual(delta: float, moving: bool) -> void:
+	var visual := get_node_or_null("Visual") as Node3D
+	if visual == null:
+		return
+	var arm_l := get_node_or_null("Visual/ArmL") as Node3D
+	var arm_r := get_node_or_null("Visual/ArmR") as Node3D
+	var leg_l := get_node_or_null("Visual/LegL") as Node3D
+	var leg_r := get_node_or_null("Visual/LegR") as Node3D
+	var cape := get_node_or_null("Visual/TatteredCape") as Node3D
+	if moving and is_on_floor():
+		walk_phase += delta * 6.8
+		var swing: float = sin(walk_phase) * 18.0
+		if arm_l != null:
+			arm_l.rotation_degrees.x = swing
+		if arm_r != null:
+			arm_r.rotation_degrees.x = -swing * 0.6
+		if leg_l != null:
+			leg_l.rotation_degrees.x = -swing * 0.75
+		if leg_r != null:
+			leg_r.rotation_degrees.x = swing * 0.75
+		if cape != null:
+			cape.rotation_degrees.x = 7.0 + abs(sin(walk_phase)) * 5.0
+		visual.position.y = abs(sin(walk_phase * 2.0)) * 0.025
+	else:
+		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 7.0, 1.0))
+		if arm_l != null:
+			arm_l.rotation_degrees.x = lerp(arm_l.rotation_degrees.x, 0.0, min(delta * 7.0, 1.0))
+		if arm_r != null:
+			arm_r.rotation_degrees.x = lerp(arm_r.rotation_degrees.x, 0.0, min(delta * 7.0, 1.0))
+		if leg_l != null:
+			leg_l.rotation_degrees.x = lerp(leg_l.rotation_degrees.x, 0.0, min(delta * 7.0, 1.0))
+		if leg_r != null:
+			leg_r.rotation_degrees.x = lerp(leg_r.rotation_degrees.x, 0.0, min(delta * 7.0, 1.0))
 
 func _try_attack() -> void:
 	if attack_timer > 0.0 or target == null:
