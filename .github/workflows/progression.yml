@@ -38,3 +38,13 @@ jobs:
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" spell-catalog.log | grep -v 'ERROR: Parameter "m" is null\.'; then
             exit 1
           fi
+
+      - name: Verify deterministic equipment progression
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/equipment_progression_test.gd 2>&1 | tee equipment-progression.log
+          grep -q "EQUIPMENT_PROGRESSION_OK" equipment-progression.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" equipment-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
