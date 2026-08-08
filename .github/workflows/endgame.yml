@@ -58,7 +58,7 @@ jobs:
         run: |
           set -o pipefail
           set +e
-          timeout 30s godot --headless --path . --script res://scripts/tests/boss_progression_state_test.gd 2>&1 | tee boss-progression.log
+          timeout 30s godot --headless --path . --script res://scripts/tests/boss_progression_contract_test.gd 2>&1 | tee boss-progression.log
           status=${PIPESTATUS[0]}
           set -e
           if [ "$status" -ne 0 ]; then
@@ -66,7 +66,7 @@ jobs:
             echo "::error title=Boss progression Godot failure::$message"
             exit "$status"
           fi
-          if ! grep -q "BOSS_PROGRESSION_STATE_OK" boss-progression.log; then
+          if ! grep -q "BOSS_PROGRESSION_CONTRACT_OK" boss-progression.log; then
             message=$(tail -n 30 boss-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
             echo "::error title=Boss progression marker missing::$message"
             exit 1
