@@ -11,6 +11,10 @@ class MockPlayerManager:
 	func state_for_peer(peer_id: int) -> Dictionary:
 		var value: Variant = states.get(peer_id, {})
 		return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+	func set_authoritative_health(peer_id: int, health: int) -> void:
+		var state: Dictionary = state_for_peer(peer_id)
+		state["health"] = health
+		states[peer_id] = state
 
 func _init() -> void:
 	process_frame.connect(_run, CONNECT_ONE_SHOT)
@@ -32,8 +36,8 @@ func _run() -> void:
 
 	var players := MockPlayerManager.new()
 	players.name = "NetworkPlayerManager"
-	players.states[4] = {"position": Vector3.ZERO}
-	players.states[5] = {"position": Vector3(50, 0, 0)}
+	players.states[4] = {"position": Vector3.ZERO, "health": 80}
+	players.states[5] = {"position": Vector3(50, 0, 0), "health": 100}
 	root.add_child(players)
 
 	# Keep combat outside the tree so only explicitly injected dependencies run.
@@ -66,8 +70,12 @@ func _run() -> void:
 	if str(unknown.get("error", "")) != "target_not_found":
 		_fail(combat, root, world_state, "Unknown stable enemy ID was not rejected")
 		return
+	var remote_damage: Dictionary = combat.call("damage_player", 4, 13)
+	if remote_damage.get("ok", false) != true or int((players.states[4] as Dictionary).get("health", -1)) != 67:
+		_fail(combat, root, world_state, "Server did not own remote player damage")
+		return
 
-	print("NETWORK_COMBAT_AUTHORITY_OK health=34 damage=16")
+	print("NETWORK_COMBAT_AUTHORITY_OK enemy_health=34 remote_health=67")
 	combat.free()
 	root.queue_free()
 	world_state.queue_free()
