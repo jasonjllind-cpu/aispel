@@ -25,6 +25,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify deterministic world generation
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/generation_determinism_test.gd 2>&1 | tee godot-generation.log
+          grep -q "GENERATION_DETERMINISM_OK" godot-generation.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-generation.log; then
+            echo "Generation test errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
