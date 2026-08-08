@@ -1,14 +1,22 @@
 extends StaticBody3D
 class_name MerchantStall
 
-@export var merchant_id: String = ""
+@export var merchant_id: String = "":
+	set(value):
+		merchant_id = value
+		_sync_stable_id()
 @export var display_name: String = "Merchant"
 
 func _ready() -> void:
 	add_to_group("interactable")
 	add_to_group("merchant_stall")
-	if not merchant_id.is_empty():
-		set_meta("stable_id", "merchant:%s" % merchant_id)
+	_sync_stable_id()
+
+func _sync_stable_id() -> void:
+	if merchant_id.is_empty():
+		remove_meta("stable_id")
+		return
+	set_meta("stable_id", "merchant:%s" % merchant_id)
 
 func get_interaction_text() -> String:
 	return "[E] Trade — %s" % display_name
