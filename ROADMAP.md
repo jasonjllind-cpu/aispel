@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.79
+## Current build: 0.80
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -90,6 +90,19 @@
 - [x] 0.78 Save migration, balance coverage and end-to-end progression regression gates
 - [x] 0.79 Progression/Magic/Equipment/Quest Chains integration and polish pass
 
+## Full Game Progression & End-game — 0.80–0.89
+
+- [x] 0.80 Data-driven campaign milestone graph, chapter gates and stable ending prerequisites
+- [ ] 0.81 End-game region access model connected to campaign, world graph and exploration milestones
+- [ ] 0.82 Boss progression tiers, guardian milestones and authoritative victory-state contracts
+- [ ] 0.83 Relic/key objective model for deterministic end-game access and recovery after reload
+- [ ] 0.84 Faction/choice consequence layer driving mutually compatible ending routes
+- [ ] 0.85 Persistent post-game world-state profile and deterministic changed-world modifiers
+- [ ] 0.86 Authoritative co-op campaign/end-game state replication and late-join reconstruction
+- [ ] 0.87 Campaign/end-game save migration and corruption recovery across version changes
+- [ ] 0.88 Full-game progression balance, seed coverage and long-session stress gates
+- [ ] 0.89 Full Game Progression & End-game integration/polish and release-candidate gameplay gate
+
 ## Verified architecture foundations
 
 - [x] RegionCatalog is the single data source for streamed authored region definitions and slots
@@ -98,12 +111,11 @@
 - [x] Runtime generation counters and generation budget
 - [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
 - [x] Same world seed reproduces the same terrain and procedural exploration content
-- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion and progression regression tests
+- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion, progression and campaign regression tests
 - [x] Main-scene headless Godot smoke test
 
 ## Later milestones
 
-- [ ] 0.80–0.89 Full game progression and end-game structure
 - [ ] 0.90–0.99 Beta, optimization and polish
 - [ ] 1.00 Release target
 
