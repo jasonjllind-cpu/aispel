@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.52
+## Current build: 0.53
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -56,7 +56,7 @@
 
 - [x] 0.51 Scalable deterministic macro world graph, procedural region template catalog and streamed generated-region lifecycle
 - [x] 0.52 Deterministic graph topology metadata: neighbour IDs, degree, shortest-path depth, progression bands and route depth
-- [ ] 0.53 Graph-aware deterministic region content profiles driven by biome and progression depth
+- [x] 0.53 Graph-aware deterministic region content profiles driven by biome and progression depth
 - [ ] 0.54 Route hierarchy, gateways and deterministic shortcut candidates
 - [ ] 0.55 Hierarchical subregion graphs for larger regions without increasing active scene-tree cost
 - [ ] 0.56 Streaming priority derived from graph topology, player route and generation budget
