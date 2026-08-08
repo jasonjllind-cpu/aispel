@@ -1,6 +1,8 @@
 extends CharacterBody3D
 
 const ITEM_DB := preload("res://scripts/item_db.gd")
+const TEX_METAL := preload("res://assets/textures/metal.svg")
+const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 
 @export var move_speed := 6.0
 @export var sprint_speed := 9.0
@@ -15,6 +17,7 @@ const ITEM_DB := preload("res://scripts/item_db.gd")
 var gravity := 18.0
 var health := 100
 var attack_timer := 0.0
+var walk_phase := 0.0
 var camera_pivot: Node3D
 var camera: Camera3D
 var visual: Node3D
@@ -123,7 +126,8 @@ func _physics_process(delta: float) -> void:
 	if not inventory_open:
 		input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish_dir: Vector3 = (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
-	var target_speed: float = sprint_speed if Input.is_action_pressed("sprint") else move_speed
+	var sprinting: bool = Input.is_action_pressed("sprint") and input_vec.length() > 0.05
+	var target_speed: float = sprint_speed if sprinting else move_speed
 	var target_velocity: Vector3 = wish_dir * target_speed
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
@@ -132,7 +136,45 @@ func _physics_process(delta: float) -> void:
 		visual.rotation.y = lerp_angle(visual.rotation.y, atan2(wish_dir.x, wish_dir.z) - rotation.y, 10.0 * delta)
 
 	move_and_slide()
+	_animate_visual(delta, input_vec.length(), sprinting)
 	_update_interaction_prompt()
+
+func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> void:
+	if visual == null:
+		return
+	var arm_l := get_node_or_null("Visual/ArmL") as Node3D
+	var arm_r := get_node_or_null("Visual/ArmR") as Node3D
+	var leg_l := get_node_or_null("Visual/LegL") as Node3D
+	var leg_r := get_node_or_null("Visual/LegR") as Node3D
+	var cape := get_node_or_null("Visual/Cape") as Node3D
+
+	if input_strength > 0.05 and is_on_floor():
+		walk_phase += delta * (12.0 if sprinting else 8.5)
+		var swing: float = sin(walk_phase) * (34.0 if sprinting else 24.0)
+		if arm_l != null:
+			arm_l.rotation_degrees.x = swing
+		if arm_r != null:
+			arm_r.rotation_degrees.x = -swing
+		if leg_l != null:
+			leg_l.rotation_degrees.x = -swing * 0.75
+		if leg_r != null:
+			leg_r.rotation_degrees.x = swing * 0.75
+		if cape != null:
+			cape.rotation_degrees.x = 8.0 + abs(sin(walk_phase)) * (8.0 if sprinting else 4.0)
+		visual.position.y = abs(sin(walk_phase * 2.0)) * 0.035
+	else:
+		walk_phase += delta * 2.0
+		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 8.0, 1.0))
+		if arm_l != null:
+			arm_l.rotation_degrees.x = lerp(arm_l.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
+		if arm_r != null:
+			arm_r.rotation_degrees.x = lerp(arm_r.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
+		if leg_l != null:
+			leg_l.rotation_degrees.x = lerp(leg_l.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
+		if leg_r != null:
+			leg_r.rotation_degrees.x = lerp(leg_r.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
+		if cape != null:
+			cape.rotation_degrees.x = lerp(cape.rotation_degrees.x, 4.0, min(delta * 5.0, 1.0))
 
 func _get_nearest_interactable() -> Node:
 	var best: Node = null
@@ -299,12 +341,14 @@ func _update_equipment_visuals() -> void:
 		var blade_material := StandardMaterial3D.new()
 		blade_material.roughness = 0.35
 		blade_material.albedo_color = Color("94d7ff") if equipped_weapon == "Moon Blade" else Color("a5a8ad")
+		blade_material.albedo_texture = TEX_METAL
 		blade.material_override = blade_material
 	var torso := get_node_or_null("Visual/Torso") as MeshInstance3D
 	if torso != null:
 		var torso_material := StandardMaterial3D.new()
 		torso_material.roughness = 0.9
-		torso_material.albedo_color = Color("434754") if equipped_armor == "Warden Mail" else Color("29273b")
+		torso_material.albedo_color = Color("434754") if equipped_armor == "Warden Mail" else Color("302b43")
+		torso_material.albedo_texture = TEX_METAL if equipped_armor == "Warden Mail" else TEX_CLOTH
 		torso.material_override = torso_material
 
 func _set_status(text: String) -> void:
