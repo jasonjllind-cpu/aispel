@@ -1,0 +1,42 @@
+name: World Graph Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: world-graph-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  world-graph:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify macro graph determinism and connectivity
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_graph_generator_test.gd 2>&1 | tee graph.log
+          grep -q "WORLD_GRAPH_OK" graph.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" graph.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World graph generation errors detected"
+            exit 1
+          fi
+
+      - name: Verify generated region streaming lifecycle
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_graph_runtime_test.gd 2>&1 | tee graph-runtime.log
+          grep -q "WORLD_GRAPH_RUNTIME_OK" graph-runtime.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" graph-runtime.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World graph runtime errors detected"
+            exit 1
+          fi
