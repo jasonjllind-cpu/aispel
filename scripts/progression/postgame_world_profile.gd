@@ -23,7 +23,7 @@ static func build_profile(world_seed: int, ending_id: String, completed_choice_i
 	var modifiers: Array[String] = []
 	for value in ENDING_MODIFIERS[ending_id] as Array:
 		modifiers.append(str(value))
-	var guardian_count: int = (boss_state.get("guardian_victory_ids", []) as Array).size() if boss_state.get("guardian_victory_ids", []) is Array else 0
+	var guardian_count: int = maxi(0, int(boss_state.get("guardian_count", 0)))
 	if guardian_count >= 3:
 		modifiers.append("world_modifier:guardian_echoes")
 	if completed_choice_ids.has("choice:roadfolk_covenant"):
@@ -54,6 +54,8 @@ static func validate_profile(profile: Dictionary) -> bool:
 		return false
 	if int(profile.get("world_seed", 0)) <= 0 or int(profile.get("completion_sequence", -1)) < 0:
 		return false
+	if int(profile.get("guardian_count", -1)) < 0:
+		return false
 	if profile.get("postgame_unlocked", false) != true or profile.get("new_game_plus_unlocked", false) != true:
 		return false
 	var modifiers_value: Variant = profile.get("modifier_ids", [])
@@ -65,6 +67,8 @@ static func validate_profile(profile: Dictionary) -> bool:
 	for required in ENDING_MODIFIERS[ending_id] as Array:
 		if not (modifiers_value as Array).has(str(required)):
 			return false
+	if int(profile.get("guardian_count", 0)) >= 3 and not (modifiers_value as Array).has("world_modifier:guardian_echoes"):
+		return false
 	return true
 
 static func build_region_modifier_plan(profile: Dictionary, graph: Dictionary, max_regions: int = 8) -> Dictionary:
