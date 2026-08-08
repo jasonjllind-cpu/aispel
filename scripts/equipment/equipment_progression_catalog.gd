@@ -30,7 +30,9 @@ const AFFIXES: Dictionary = {
 }
 
 static func get_item(item_id: String) -> Dictionary:
-	var value: Variant = BASE_ITEMS.get(item_id, {})
+	if not BASE_ITEMS.has(item_id):
+		return {}
+	var value: Variant = BASE_ITEMS[item_id]
 	if not value is Dictionary:
 		return {}
 	var result: Dictionary = (value as Dictionary).duplicate(true)
