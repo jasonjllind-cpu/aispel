@@ -67,8 +67,8 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          godot --headless --path . --script res://scripts/tests/quest_chain_graph_test.gd 2>&1 | tee quest-chain.log
-          grep -q "QUEST_CHAIN_GRAPH_OK" quest-chain.log
+          godot --headless --path . --script res://scripts/tests/quest_chain_catalog_test.gd 2>&1 | tee quest-chain.log
+          grep -q "QUEST_CHAIN_CATALOG_OK" quest-chain.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" quest-chain.log | grep -v 'ERROR: Parameter "m" is null\.'; then
             exit 1
           fi
