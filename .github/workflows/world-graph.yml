@@ -84,3 +84,14 @@ jobs:
             echo "World streaming planner errors detected"
             exit 1
           fi
+
+      - name: Verify macro world distribution constraints
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_distribution_planner_test.gd 2>&1 | tee distribution-plan.log
+          grep -q "WORLD_DISTRIBUTION_PLANNER_OK" distribution-plan.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" distribution-plan.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World distribution planner errors detected"
+            exit 1
+          fi
