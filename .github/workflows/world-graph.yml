@@ -121,3 +121,14 @@ jobs:
             echo "World graph stress errors detected"
             exit 1
           fi
+
+      - name: Verify Procedural Generation 2.0 quality gates
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/procedural_generation_quality_gate_test.gd 2>&1 | tee procgen-quality.log
+          grep -q "PROCEDURAL_GENERATION_2_OK" procgen-quality.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" procgen-quality.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Procedural Generation 2.0 quality gate errors detected"
+            exit 1
+          fi
