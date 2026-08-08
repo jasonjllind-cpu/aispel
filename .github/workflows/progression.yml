@@ -1,0 +1,30 @@
+name: Progression Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: progression-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  progression:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify persistent player progression
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/player_progression_state_test.gd 2>&1 | tee player-progression.log
+          grep -q "PLAYER_PROGRESSION_STATE_OK" player-progression.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" player-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
