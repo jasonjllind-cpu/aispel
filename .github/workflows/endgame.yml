@@ -77,3 +77,28 @@ jobs:
             echo "::error title=Boss progression script errors::$message"
             exit 1
           fi
+
+      - name: Verify deterministic endgame relic objectives
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/endgame_relic_objectives_test.gd 2>&1 | tee endgame-relic-objectives.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 endgame-relic-objectives.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame relic objective Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "ENDGAME_RELIC_OBJECTIVES_OK" endgame-relic-objectives.log; then
+            message=$(tail -n 30 endgame-relic-objectives.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame relic objective marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-relic-objectives.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame relic objective script errors::$message"
+            exit 1
+          fi
