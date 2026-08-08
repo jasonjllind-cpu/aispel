@@ -4,6 +4,7 @@ class_name NetworkPlayerManager
 signal player_state_accepted(peer_id: int, state: Dictionary)
 signal player_state_rejected(peer_id: int, reason: String)
 
+const TARGET_SCRIPT := preload("res://scripts/network/network_player_target.gd")
 const STATE_PROTOCOL: int = 1
 const SEND_INTERVAL: float = 0.10
 const MAX_WORLD_COORDINATE: float = 50000.0
@@ -81,6 +82,13 @@ func accept_player_state(peer_id: int, state: Dictionary) -> Dictionary:
 	var sequence: int = int(state.get("sequence", 0))
 	last_sequence_by_peer[peer_id] = sequence
 	var copy: Dictionary = state.duplicate(true)
+	# The host is authoritative over damage. Never let a remote snapshot heal
+	# itself above the health value the server already accepted after damage.
+	var previous_value: Variant = player_states.get(peer_id, {})
+	if network_session != null and network_session.call("is_server_authority") == true and previous_value is Dictionary:
+		var previous: Dictionary = previous_value as Dictionary
+		if previous.has("health"):
+			copy["health"] = min(int(copy.get("health", 0)), int(previous.get("health", copy.get("health", 0))))
 	player_states[peer_id] = copy
 	player_state_accepted.emit(peer_id, copy.duplicate(true))
 	_ensure_remote_proxy(peer_id)
@@ -125,6 +133,20 @@ func state_for_peer(peer_id: int) -> Dictionary:
 	var value: Variant = player_states.get(peer_id, {})
 	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
 
+func set_authoritative_health(peer_id: int, health: int) -> void:
+	var state: Dictionary = state_for_peer(peer_id)
+	if state.is_empty():
+		state = {
+			"protocol": STATE_PROTOCOL,
+			"peer_id": peer_id,
+			"player_id": "player:peer:%d" % peer_id,
+			"sequence": int(last_sequence_by_peer.get(peer_id, 0)),
+			"position": Vector3.ZERO,
+			"rotation_y": 0.0
+		}
+	state["health"] = max(0, health)
+	player_states[peer_id] = state
+
 func remove_peer(peer_id: int) -> void:
 	player_states.erase(peer_id)
 	last_sequence_by_peer.erase(peer_id)
@@ -155,7 +177,7 @@ func _local_peer_id() -> int:
 	return int(network_session.call("local_peer_id"))
 
 func _ensure_remote_proxy(peer_id: int) -> void:
-	if peer_id == _local_peer_id() or DisplayServer.get_name() == "headless":
+	if peer_id == _local_peer_id():
 		return
 	if remote_proxies.has(peer_id) and is_instance_valid(remote_proxies[peer_id]):
 		return
@@ -163,10 +185,13 @@ func _ensure_remote_proxy(peer_id: int) -> void:
 	if parent == null:
 		return
 	var proxy := Node3D.new()
+	proxy.set_script(TARGET_SCRIPT)
 	proxy.name = "RemotePlayer_%d" % peer_id
+	proxy.set("peer_id", peer_id)
 	proxy.set_meta("stable_id", "player:peer:%d" % peer_id)
 	proxy.add_to_group("remote_player")
-	_build_remote_visual(proxy)
+	if DisplayServer.get_name() != "headless":
+		_build_remote_visual(proxy)
 	parent.add_child(proxy)
 	remote_proxies[peer_id] = proxy
 
@@ -190,8 +215,6 @@ func _build_remote_visual(proxy: Node3D) -> void:
 	proxy.add_child(head)
 
 func _update_remote_proxies(delta: float) -> void:
-	if DisplayServer.get_name() == "headless":
-		return
 	for peer_id_value in remote_proxies.keys():
 		var peer_id: int = int(peer_id_value)
 		var proxy_value: Variant = remote_proxies.get(peer_id)
@@ -237,8 +260,6 @@ func _replicate_player_state(state: Dictionary) -> void:
 	var peer_id: int = int(state.get("peer_id", 0))
 	if peer_id <= 0 or peer_id == _local_peer_id():
 		return
-	# The server has already validated this snapshot. Clients keep only the
-	# newest sequence so late/unordered packets cannot rewind remote players.
 	var sequence: int = int(state.get("sequence", 0))
 	if sequence <= int(last_sequence_by_peer.get(peer_id, 0)):
 		return
