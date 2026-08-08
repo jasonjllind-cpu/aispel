@@ -14,5 +14,23 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Import project and check scripts
-        run: godot --headless --path . --editor --quit
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --editor --quit 2>&1 | tee godot-editor.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:" godot-editor.log; then
+            echo "Godot script errors detected"
+            exit 1
+          fi
+
+      - name: Launch main scene smoke test
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --quit-after 120 2>&1 | tee godot-game.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:" godot-game.log; then
+            echo "Godot runtime errors detected"
+            exit 1
+          fi
