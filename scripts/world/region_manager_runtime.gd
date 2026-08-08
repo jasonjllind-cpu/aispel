@@ -33,7 +33,7 @@ func _update_streaming() -> void:
 			nearest_distance = distance
 			nearest_id = region_id
 
-		if bool(definition.get("external", false)):
+		if definition.get("external", false) == true:
 			continue
 		if distance <= CATALOG_LOAD_RADIUS and not loaded_regions.has(region_id):
 			_load_region(definition)
@@ -50,6 +50,23 @@ func _update_streaming() -> void:
 		if world_state != null:
 			seed_value = int(world_state.get("world_seed"))
 		debug_label.text = "Region: %s   •   World seed: %d" % [_region_display_name(current_region_id), seed_value]
+
+func _enter_region(region_id: String) -> void:
+	current_region_id = region_id
+	if world_state == null:
+		_show_region_card(region_id)
+		return
+	var already_discovered: bool = false
+	if world_state.has_method("is_region_discovered"):
+		already_discovered = world_state.call("is_region_discovered", region_id) == true
+	if world_state.has_method("set_current_region"):
+		world_state.call("set_current_region", region_id)
+	else:
+		world_state.set("current_region_id", region_id)
+	if world_state.has_method("mark_region_discovered"):
+		world_state.call("mark_region_discovered", region_id)
+	if not already_discovered:
+		_show_region_card(region_id)
 
 func _load_region(definition: Dictionary) -> void:
 	var region_id: String = str(definition.get("id", "unknown"))
