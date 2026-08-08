@@ -10,6 +10,10 @@ run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.3", "Forward Plus")
 config/icon="res://icon.svg"
 
+[autoload]
+
+WorldState="*res://scripts/core/world_state.gd"
+
 [display]
 
 window/size/viewport_width=640
