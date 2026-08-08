@@ -102,3 +102,28 @@ jobs:
             echo "::error title=Endgame relic objective script errors::$message"
             exit 1
           fi
+
+      - name: Verify faction and ending choice consequences
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/endgame_choice_consequences_test.gd 2>&1 | tee endgame-choice-consequences.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 endgame-choice-consequences.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame choice consequence Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "ENDGAME_CHOICE_CONSEQUENCES_OK" endgame-choice-consequences.log; then
+            message=$(tail -n 30 endgame-choice-consequences.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame choice consequence marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-choice-consequences.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Endgame choice consequence script errors::$message"
+            exit 1
+          fi
