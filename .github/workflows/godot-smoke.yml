@@ -91,14 +91,14 @@ jobs:
             exit 1
           fi
 
-      - name: Verify dungeon runtime flow
+      - name: Verify dungeon runtime
         shell: bash
         run: |
           set -o pipefail
-          godot --headless --path . --script res://scripts/tests/dungeon_runtime_flow_test.gd 2>&1 | tee godot-dungeon-flow.log
-          grep -q "DUNGEON_RUNTIME_FLOW_OK" godot-dungeon-flow.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-dungeon-flow.log | grep -v 'ERROR: Parameter "m" is null\.'; then
-            echo "Dungeon runtime flow errors detected"
+          godot --headless --path . --script res://scripts/tests/dungeon_runtime_test.gd 2>&1 | tee godot-dungeon-runtime.log
+          grep -q "DUNGEON_RUNTIME_OK" godot-dungeon-runtime.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-dungeon-runtime.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Dungeon runtime errors detected"
             exit 1
           fi
 
