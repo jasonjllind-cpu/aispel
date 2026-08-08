@@ -135,6 +135,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify authoritative network commands
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_command_router_test.gd 2>&1 | tee godot-network-commands.log
+          grep -q "NETWORK_COMMAND_ROUTER_OK" godot-network-commands.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-network-commands.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Authoritative network command errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
