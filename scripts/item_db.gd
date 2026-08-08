@@ -12,6 +12,11 @@ const ITEMS := {
 		"damage": 30,
 		"description": "A cold blue blade found among the old ruins."
 	},
+	"Crypt Fang": {
+		"type": "weapon",
+		"damage": 38,
+		"description": "A narrow grave-steel blade recovered from Whispering Crypt."
+	},
 	"Warden Mail": {
 		"type": "armor",
 		"armor": 5,
@@ -27,7 +32,7 @@ const ITEMS := {
 	},
 	"Old Key": {
 		"type": "key",
-		"description": "A corroded key. It must still open something."
+		"description": "A corroded key bearing the crest of Whispering Crypt."
 	}
 }
 
@@ -44,5 +49,5 @@ static func get_armor(item_name: String) -> int:
 	return int(get_item(item_name).get("armor", 0))
 
 static func is_equippable(item_name: String) -> bool:
-	var item_type := get_type(item_name)
+	var item_type: String = get_type(item_name)
 	return item_type == "weapon" or item_type == "armor"
