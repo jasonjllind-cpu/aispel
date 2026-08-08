@@ -13,6 +13,9 @@ class MockPlayerManager:
 		return (value as Dictionary).duplicate(true) if value is Dictionary else {}
 
 func _init() -> void:
+	process_frame.connect(_run, CONNECT_ONE_SHOT)
+
+func _run() -> void:
 	var root := Node3D.new()
 	get_root().add_child(root)
 	var world_state := Node.new()
@@ -33,9 +36,9 @@ func _init() -> void:
 	players.states[5] = {"position": Vector3(50, 0, 0)}
 	root.add_child(players)
 
+	# Keep combat outside the tree so only explicitly injected dependencies run.
 	var combat := Node.new()
 	combat.set_script(COMBAT_AUTHORITY_SCRIPT)
-	root.add_child(combat)
 	combat.set("network_session", session)
 	combat.set("player_manager", players)
 	combat.set("world_state", world_state)
@@ -49,24 +52,31 @@ func _init() -> void:
 
 	var hit: Dictionary = combat.call("execute_attack", 4, "enemy:test:warden")
 	if hit.get("ok", false) != true or int(hit.get("damage", 0)) != 16 or int(enemy.get("health")) != 34:
-		_fail("Valid server-authoritative attack did not apply expected damage")
+		_fail(combat, root, world_state, "Valid server-authoritative attack did not apply expected damage")
 		return
 	var persisted: Dictionary = world_state.call("get_entity_state", "enemy:test:warden")
 	if int(persisted.get("health", -1)) != 34 or persisted.get("dead", true) == true:
-		_fail("Enemy combat state was not persisted for replication")
+		_fail(combat, root, world_state, "Enemy combat state was not persisted for replication")
 		return
 	var far_attack: Dictionary = combat.call("execute_attack", 5, "enemy:test:warden")
 	if str(far_attack.get("error", "")) != "target_out_of_range":
-		_fail("Out-of-range peer attack was not rejected")
+		_fail(combat, root, world_state, "Out-of-range peer attack was not rejected")
 		return
 	var unknown: Dictionary = combat.call("execute_attack", 4, "enemy:missing")
 	if str(unknown.get("error", "")) != "target_not_found":
-		_fail("Unknown stable enemy ID was not rejected")
+		_fail(combat, root, world_state, "Unknown stable enemy ID was not rejected")
 		return
 
 	print("NETWORK_COMBAT_AUTHORITY_OK health=34 damage=16")
+	combat.free()
+	root.queue_free()
+	world_state.queue_free()
+	await process_frame
 	quit(0)
 
-func _fail(message: String) -> void:
+func _fail(combat: Node, root: Node, world_state: Node, message: String) -> void:
 	printerr("NETWORK_COMBAT_AUTHORITY_FAILED: %s" % message)
+	combat.free()
+	root.queue_free()
+	world_state.queue_free()
 	quit(1)
