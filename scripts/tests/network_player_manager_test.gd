@@ -59,6 +59,20 @@ func _init() -> void:
 	if str(bounds_result.get("error", "")) != "position_out_of_bounds":
 		_fail("Out-of-bounds player state was not rejected")
 		return
+	var teleport: Dictionary = state.duplicate(true)
+	teleport["sequence"] = 2
+	teleport["position"] = Vector3(25.0, 1.0, -7.0)
+	var teleport_result: Dictionary = manager.call("accept_player_state", 4, teleport)
+	if str(teleport_result.get("error", "")) != "movement_step_too_large":
+		_fail("Implausible movement snapshot was not rejected")
+		return
+	var plausible: Dictionary = state.duplicate(true)
+	plausible["sequence"] = 2
+	plausible["position"] = Vector3(14.0, 1.0, -7.0)
+	var plausible_result: Dictionary = manager.call("accept_player_state", 4, plausible)
+	if plausible_result.get("ok", false) != true:
+		_fail("Plausible movement snapshot was rejected")
+		return
 	var unknown: Dictionary = state.duplicate(true)
 	unknown["peer_id"] = 9
 	unknown["player_id"] = "player:peer:9"
@@ -72,7 +86,7 @@ func _init() -> void:
 		_fail("Disconnected peer state was not removed")
 		return
 
-	print("NETWORK_PLAYER_MANAGER_OK player=player:peer:4 sequence=1")
+	print("NETWORK_PLAYER_MANAGER_OK player=player:peer:4 sequence=2")
 	quit(0)
 
 func _fail(message: String) -> void:
