@@ -81,12 +81,16 @@ func _validate_full_journey() -> bool:
 	var network: Node = NETWORK.new()
 	var snapshot: Dictionary = BUNDLE.build_network_snapshot(restored, network)
 	if snapshot.is_empty() or not bool(network.call("validate_snapshot", snapshot)):
+		network.free()
 		return _fail("Integrated progression bundle failed network snapshot validation")
 	if (network.call("register_authoritative_snapshot", snapshot) as Dictionary).get("ok", false) != true:
+		network.free()
 		return _fail("Integrated progression network snapshot failed to register")
 	var replicated: Dictionary = network.call("player_snapshot", "player:test") as Dictionary
 	if var_to_str(replicated.get("build", {})) != var_to_str(restored.get("build", {})):
+		network.free()
 		return _fail("Network replication changed integrated build state")
+	network.free()
 	return true
 
 func _validate_reward_idempotency() -> bool:
@@ -128,7 +132,9 @@ func _validate_stress_round_trip() -> bool:
 	var network: Node = NETWORK.new()
 	var snapshot: Dictionary = BUNDLE.build_network_snapshot(bundle, network)
 	if snapshot.is_empty() or not bool(network.call("validate_snapshot", snapshot)):
+		network.free()
 		return _fail("Stress progression failed final network snapshot")
+	network.free()
 	return true
 
 func _fail(message: String) -> bool:
