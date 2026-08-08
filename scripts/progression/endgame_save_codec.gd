@@ -100,6 +100,9 @@ static func validate_snapshot(snapshot: Dictionary) -> bool:
 	for milestone in completed_value as Array:
 		if CAMPAIGN.get_milestone(str(milestone)).is_empty():
 			return false
+	for milestone in world_value as Array:
+		if not _valid_world_milestone_id(str(milestone)):
+			return false
 	var normalized_boss: Dictionary = BOSSES.normalize_state(boss_value)
 	if normalized_boss != boss_value:
 		return false
@@ -144,6 +147,14 @@ static func _recovery_reason(payload: Dictionary) -> String:
 	if version == CURRENT_VERSION and int(payload.get("checksum", -1)) != _checksum(payload):
 		return "checksum_mismatch"
 	return "invalid_payload"
+
+static func _valid_world_milestone_id(milestone_id: String) -> bool:
+	if milestone_id.is_empty():
+		return false
+	return milestone_id.begins_with("world_milestone:") \
+		or milestone_id.begins_with("dungeon_milestone:") \
+		or milestone_id.begins_with("boss_milestone:") \
+		or milestone_id.begins_with("campaign_milestone:")
 
 static func _has_duplicates(values: Array) -> bool:
 	var seen: Dictionary = {}
