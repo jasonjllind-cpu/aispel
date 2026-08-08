@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.72
+## Current build: 0.73
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -82,7 +82,7 @@
 - [x] 0.70 Persistent player progression state, XP/level curves and progression rewards
 - [x] 0.71 Data-driven spell catalog, schools, resource costs and casting contracts
 - [x] 0.72 Equipment progression, rarity tiers, stat scaling and deterministic item rolls
-- [ ] 0.73 Quest-chain graph with prerequisites, branching objectives and stable progression IDs
+- [x] 0.73 Quest-chain graph with prerequisites, branching objectives and stable progression IDs
 - [ ] 0.74 Magic-school progression, unlocks and world/quest discovery integration
 - [ ] 0.75 Regional progression gates and rewards connected to encounters, dungeons and exploration content
 - [ ] 0.76 Character build/loadout model integrating equipment, magic and derived combat stats
