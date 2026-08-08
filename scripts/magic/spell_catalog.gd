@@ -19,7 +19,9 @@ const SPELLS: Dictionary = {
 }
 
 static func get_spell(spell_id: String) -> Dictionary:
-	var value: Variant = SPELLS.get(spell_id, {})
+	if not SPELLS.has(spell_id):
+		return {}
+	var value: Variant = SPELLS[spell_id]
 	if not value is Dictionary:
 		return {}
 	var result: Dictionary = (value as Dictionary).duplicate(true)
