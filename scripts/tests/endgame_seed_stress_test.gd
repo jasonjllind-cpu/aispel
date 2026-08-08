@@ -78,14 +78,30 @@ func _exercise_seed(seed: int, index: int) -> Dictionary:
 		return {"ok": false, "error": "relic_gate_not_satisfied"}
 
 	var boss_state: Dictionary = BOSSES.empty_state()
-	for boss_id in ["hollow_king", "blackroot_matriarch", "stormbound_titan"]:
+	var campaign_ids: Array[String] = ["campaign:frontier_oath", "campaign:blackwood_pact", "campaign:convergence"]
+	var guardian_route: Array[String] = ["hollow_king", "stormbound_titan", "frostbound_wyrm"]
+	for boss_id in guardian_route:
+		var world_ids: Array[String] = []
+		for milestone in boss_state.get("milestone_ids", []) as Array:
+			world_ids.append(str(milestone))
+		var access_decision: Dictionary = BOSSES.boss_access(boss_id, boss_state, campaign_ids, world_ids)
+		if access_decision.get("allowed", false) != true:
+			return {"ok": false, "error": "guardian_access_failed:%s:%s" % [boss_id, str(access_decision.get("reason", ""))]}
 		var boss_result: Dictionary = BOSSES.record_authoritative_victory(boss_state, boss_id, 1, 1, sequence)
 		if boss_result.get("ok", false) != true:
 			return {"ok": false, "error": "guardian_progression_failed:%s" % boss_id}
 		boss_state = boss_result.get("state", {}) as Dictionary
 		sequence += 1
-	if int(boss_state.get("guardian_count", 0)) < 3:
-		return {"ok": false, "error": "guardian_count_under_three"}
+	if int(boss_state.get("guardian_count", 0)) < 3 or int(boss_state.get("highest_guardian_tier", 0)) < 3:
+		return {"ok": false, "error": "guardian_tier_coverage_incomplete"}
+
+	var locked_final: Dictionary = BOSSES.boss_access("eclipsed_regent", boss_state, campaign_ids, _string_array(boss_state.get("milestone_ids", []) as Array))
+	if locked_final.get("allowed", false) == true:
+		return {"ok": false, "error": "final_boss_campaign_gate_bypassed"}
+	campaign_ids.append("campaign:endgame_unlocked")
+	var final_access: Dictionary = BOSSES.boss_access("eclipsed_regent", boss_state, campaign_ids, _string_array(boss_state.get("milestone_ids", []) as Array))
+	if final_access.get("allowed", false) != true:
+		return {"ok": false, "error": "final_boss_access_failed"}
 	var final_result: Dictionary = BOSSES.record_authoritative_victory(boss_state, "eclipsed_regent", 1, 1, sequence)
 	if final_result.get("ok", false) != true:
 		return {"ok": false, "error": "final_victory_failed"}
@@ -115,7 +131,7 @@ func _exercise_seed(seed: int, index: int) -> Dictionary:
 		return {"ok": false, "error": "invalid_postgame_region_plan"}
 
 	var snapshot: Dictionary = {
-		"completed_campaign": ["campaign:frontier_oath", "campaign:blackwood_pact", "campaign:convergence", "campaign:endgame_unlocked"],
+		"completed_campaign": campaign_ids.duplicate(),
 		"world_milestones": (boss_state.get("milestone_ids", []) as Array).duplicate(),
 		"boss_state": boss_state.duplicate(true),
 		"relic_plan": relic_plan.duplicate(true),
@@ -130,6 +146,12 @@ func _exercise_seed(seed: int, index: int) -> Dictionary:
 		return {"ok": false, "error": "save_roundtrip_failed"}
 
 	return {"ok": true, "regions": (graph.get("nodes", []) as Array).size(), "route": route}
+
+func _string_array(values: Array) -> Array[String]:
+	var result: Array[String] = []
+	for value in values:
+		result.append(str(value))
+	return result
 
 func _fail(message: String) -> void:
 	printerr("ENDGAME_SEED_STRESS_FAILED: %s" % message)
