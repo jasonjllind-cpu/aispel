@@ -184,8 +184,8 @@ static func restore_envelope(envelope: Dictionary) -> Dictionary:
 		"progression": (decoded.get("progression", {}) as Dictionary).duplicate(true),
 		"magic": (decoded.get("magic", {}) as Dictionary).duplicate(true),
 		"build": (decoded.get("build", {}) as Dictionary).duplicate(true),
-		"completed_quests": (decoded.get("completed_quests", []) as Array).duplicate(),
-		"applied_reward_ids": (rewards_value as Array).duplicate()
+		"completed_quests": _to_plain_array(decoded.get("completed_quests", []) as Array),
+		"applied_reward_ids": _to_plain_array(rewards_value as Array)
 	}
 	return restored if validate(restored) else {}
 
@@ -221,4 +221,10 @@ static func _to_string_array(values: Array) -> Array[String]:
 	var result: Array[String] = []
 	for value in values:
 		result.append(str(value))
+	return result
+
+static func _to_plain_array(values: Array) -> Array:
+	var result: Array = []
+	for value in values:
+		result.append(value)
 	return result
