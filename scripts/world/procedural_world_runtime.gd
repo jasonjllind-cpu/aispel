@@ -1,6 +1,12 @@
 extends "res://scripts/world/procedural_world_system.gd"
 
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
+const RUNTIME_TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
+const MAX_POOLED_CHUNKS: int = 64
+
+var chunk_pool: Array[Node3D] = []
+var chunk_pool_root: Node3D
+var pooled_reuses: int = 0
 
 func _build_starting_valley_terrain() -> void:
 	if world == null or world.has_node("GeneratedStartingValley"):
@@ -40,3 +46,79 @@ func _build_region_terrain(region_node: Node3D, region_id: String) -> void:
 	terrain_root.name = "GeneratedTerrain"
 	region_node.add_child(terrain_root)
 	_build_chunks(terrain_root, region_id, biome_id, REGION_CATALOG.get_center(region_id), reserved_slots, -2, 2)
+
+func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_center: Vector3, reserved_slots: Array[Dictionary], min_coord: int, max_coord_exclusive: int) -> void:
+	for chunk_z in range(min_coord, max_coord_exclusive):
+		for chunk_x in range(min_coord, max_coord_exclusive):
+			var coord := Vector2i(chunk_x, chunk_z)
+			var cache_key: String = "%d:%s:%d:%d" % [_world_seed(), region_id, chunk_x, chunk_z]
+			var chunk_data: Dictionary
+			if chunk_data_cache.has(cache_key):
+				chunk_data = (chunk_data_cache[cache_key] as Dictionary).duplicate(true)
+			else:
+				chunk_data = generator.call("generate_chunk_data", region_id, biome_id, region_center, coord, reserved_slots)
+				chunk_data_cache[cache_key] = chunk_data.duplicate(true)
+
+			var chunk: Node3D = _acquire_chunk(parent)
+			chunk.call("build_from_data", chunk_data)
+
+func _acquire_chunk(parent: Node3D) -> Node3D:
+	_ensure_pool_root()
+	var chunk: Node3D
+	if not chunk_pool.is_empty():
+		chunk = chunk_pool.pop_back()
+		chunk.reparent(parent, false)
+		pooled_reuses += 1
+	else:
+		chunk = Node3D.new()
+		chunk.set_script(RUNTIME_TERRAIN_CHUNK_SCRIPT)
+		parent.add_child(chunk)
+	return chunk
+
+func release_region_terrain(region_id: String) -> int:
+	if world == null or region_id.is_empty() or region_id == "starting_valley":
+		return 0
+	var runtime_regions := world.get_node_or_null("RuntimeRegions") as Node3D
+	if runtime_regions == null:
+		return 0
+	var region_node := runtime_regions.get_node_or_null("Region_%s" % region_id) as Node3D
+	if region_node == null:
+		return 0
+	var terrain_root := region_node.get_node_or_null("GeneratedTerrain") as Node3D
+	if terrain_root == null:
+		return 0
+	_ensure_pool_root()
+	var released: int = 0
+	for child in terrain_root.get_children():
+		if not child is Node3D:
+			continue
+		var chunk := child as Node3D
+		if not chunk.is_in_group("generated_terrain_chunk"):
+			continue
+		if chunk_pool.size() >= MAX_POOLED_CHUNKS:
+			chunk.queue_free()
+			continue
+		chunk.call("prepare_for_pool")
+		chunk.reparent(chunk_pool_root, false)
+		chunk_pool.append(chunk)
+		released += 1
+	return released
+
+func _ensure_pool_root() -> void:
+	if is_instance_valid(chunk_pool_root):
+		return
+	chunk_pool_root = Node3D.new()
+	chunk_pool_root.name = "TerrainChunkPool"
+	chunk_pool_root.visible = false
+	if world != null:
+		world.add_child(chunk_pool_root)
+	else:
+		add_child(chunk_pool_root)
+
+func get_pool_stats() -> Dictionary:
+	return {
+		"available": chunk_pool.size(),
+		"capacity": MAX_POOLED_CHUNKS,
+		"reuses": pooled_reuses,
+		"cached_chunk_data": chunk_data_cache.size()
+	}
