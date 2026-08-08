@@ -9,16 +9,25 @@ var random_button: Button
 var previous_mouse_mode: Input.MouseMode = Input.MOUSE_MODE_CAPTURED
 
 func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	world_state = get_node_or_null("/root/WorldState")
 	_build_ui()
 
-func _unhandled_input(event: InputEvent) -> void:
+func _input(event: InputEvent) -> void:
+	if event.is_action_pressed("world_seed_menu"):
+		_toggle_menu()
+		get_viewport().set_input_as_handled()
+		return
+
 	if event is InputEventKey:
 		var key_event := event as InputEventKey
-		if key_event.pressed and not key_event.echo and key_event.keycode == KEY_F2:
+		var is_f2: bool = key_event.keycode == KEY_F2 or key_event.physical_keycode == KEY_F2
+		if key_event.pressed and not key_event.echo and is_f2:
 			_toggle_menu()
 			get_viewport().set_input_as_handled()
-	elif event.is_action_pressed("ui_cancel") and panel != null and panel.visible:
+			return
+
+	if event.is_action_pressed("ui_cancel") and panel != null and panel.visible:
 		_close_menu()
 		get_viewport().set_input_as_handled()
 
@@ -45,7 +54,7 @@ func _build_ui() -> void:
 	var help := Label.new()
 	help.position = Vector2(18, 43)
 	help.size = Vector2(294, 36)
-	help.text = "Same seed = same generated world\nF2 opens/closes this menu"
+	help.text = "Same seed = same generated world\nF2 or G opens/closes this menu"
 	help.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	help.add_theme_font_size_override("font_size", 10)
 	panel.add_child(help)
