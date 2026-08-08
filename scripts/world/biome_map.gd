@@ -43,6 +43,10 @@ func ground_color(sample_data: Dictionary) -> Color:
 	return color_a.lerp(color_b, blend)
 
 func _climate_biome(temperature: float, moisture: float) -> String:
+	if temperature < 0.26:
+		return "frostmere"
+	if temperature > 0.68 and moisture > 0.48:
+		return "ashen_fen"
 	if moisture > 0.64 and temperature < 0.58:
 		return "blackwood"
 	if moisture < 0.38 and temperature > 0.48:
@@ -56,8 +60,16 @@ func _alternate_biome(preferred_biome: String, temperature: float, moisture: flo
 		"blackwood":
 			return "green_highlands" if temperature > 0.43 else "veilmoor"
 		"windscar_highlands":
-			return "green_highlands" if moisture > 0.32 else "veilmoor"
+			return "ashen_fen" if moisture > 0.58 and temperature > 0.58 else "green_highlands"
 		"veilmoor":
-			return "blackwood" if moisture > 0.57 else "windscar_highlands"
+			return "frostmere" if temperature < 0.30 else ("blackwood" if moisture > 0.57 else "windscar_highlands")
+		"ashen_fen":
+			return "green_highlands" if moisture < 0.62 else "blackwood"
+		"frostmere":
+			return "veilmoor" if moisture < 0.55 else "blackwood"
 		_:
+			if temperature < 0.30:
+				return "frostmere"
+			if temperature > 0.66 and moisture > 0.50:
+				return "ashen_fen"
 			return "blackwood" if moisture > 0.56 else "windscar_highlands"
