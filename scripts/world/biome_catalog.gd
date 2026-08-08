@@ -65,6 +65,38 @@ const BIOMES: Dictionary = {
 		"terrain_detail": 0.38,
 		"terrain_ridge": 0.36,
 		"encounter_profile": "highland_guardians"
+	},
+	"ashen_fen": {
+		"display_name": "Ashen Fen",
+		"ground_color": Color("55483f"),
+		"road_color": Color("75604f"),
+		"tree_trunk": Color("3b2b29"),
+		"tree_leaf": Color("4b4935"),
+		"accent": Color("d09262"),
+		"rock_color": Color("615858"),
+		"tree_density": 0.24,
+		"rock_density": 0.28,
+		"elevation": 0.25,
+		"terrain_scale": 0.68,
+		"terrain_detail": 0.48,
+		"terrain_ridge": 0.05,
+		"encounter_profile": "fen_reavers"
+	},
+	"frostmere": {
+		"display_name": "Frostmere",
+		"ground_color": Color("657078"),
+		"road_color": Color("7f8382"),
+		"tree_trunk": Color("4e4545"),
+		"tree_leaf": Color("53636a"),
+		"accent": Color("b8d4d7"),
+		"rock_color": Color("808891"),
+		"tree_density": 0.18,
+		"rock_density": 0.48,
+		"elevation": 1.65,
+		"terrain_scale": 1.18,
+		"terrain_detail": 0.30,
+		"terrain_ridge": 0.24,
+		"encounter_profile": "frostbound"
 	}
 }
 
@@ -79,4 +111,5 @@ static func get_ids() -> Array[String]:
 	var result: Array[String] = []
 	for key in BIOMES.keys():
 		result.append(str(key))
+	result.sort()
 	return result
