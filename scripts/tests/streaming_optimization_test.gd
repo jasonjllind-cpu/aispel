@@ -2,6 +2,7 @@ extends SceneTree
 
 const TERRAIN_CHUNK := preload("res://scripts/world/terrain_chunk.gd")
 const CHUNK_POOL := preload("res://scripts/world/terrain_chunk_pool.gd")
+const GENERATION_CACHE := preload("res://scripts/world/bounded_generation_cache.gd")
 
 func _init() -> void:
 	var parent := Node3D.new()
@@ -45,12 +46,36 @@ func _init() -> void:
 		_fail("Pool capacity is not strictly bounded: %s" % str(bounded))
 		return
 
+	var cache: RefCounted = GENERATION_CACHE.new(3)
+	cache.call("put", "a", {"value": 1})
+	cache.call("put", "b", {"value": 2})
+	cache.call("put", "c", {"value": 3})
+	var b_value: Dictionary = cache.call("get_value", "b") as Dictionary
+	if int(b_value.get("value", -1)) != 2:
+		_fail("Generation cache did not return stored data")
+		return
+	cache.call("put", "d", {"value": 4})
+	var cache_stats: Dictionary = cache.call("stats") as Dictionary
+	if int(cache_stats.get("size", -1)) != 3 or int(cache_stats.get("evictions", -1)) != 1:
+		_fail("Generation cache capacity is not bounded: %s" % str(cache_stats))
+		return
+	if not (cache.call("get_value", "a") as Dictionary).is_empty():
+		_fail("Generation cache did not evict least-recently-used data")
+		return
+	if int((cache.call("get_value", "b") as Dictionary).get("value", -1)) != 2:
+		_fail("Generation cache evicted a recently used entry")
+		return
+
 	pool.call("clear")
+	cache.call("clear")
 	if int((pool.call("stats") as Dictionary).get("available", -1)) != 0:
 		_fail("Pool clear left retained chunks")
 		return
+	if int((cache.call("stats") as Dictionary).get("size", -1)) != 0:
+		_fail("Generation cache clear left retained data")
+		return
 	parent.free()
-	print("STREAMING_OPTIMIZATION_OK created=8 reused=6 capacity=8")
+	print("STREAMING_OPTIMIZATION_OK created=8 reused=6 pool_capacity=8 cache_capacity=3")
 	quit(0)
 
 func _fail(message: String) -> void:
