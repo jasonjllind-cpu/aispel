@@ -58,7 +58,7 @@ func _test_instance(system: Node, world_state: Node) -> bool:
 		return _fail("Dungeon exit portal is missing")
 	if DisplayServer.get_name() == "headless" and _contains_mesh_instance(root):
 		return _fail("Client dungeon mesh leaked into headless runtime")
-	if _count_type(root, CollisionShape3D) < 10:
+	if _count_collisions(root) < 10:
 		return _fail("Dungeon runtime did not create enough collision geometry")
 	var boss := root.get_node_or_null("Boss_hollow_king")
 	if boss == null:
@@ -97,14 +97,10 @@ func _contains_mesh_instance(node: Node) -> bool:
 			return true
 	return false
 
-func _count_type(node: Node, type_value: Variant) -> int:
-	var count := 0
-	# GDScript cannot use a dynamic class in `is`, so the only caller currently
-	# asks for CollisionShape3D and we keep the traversal explicit and cheap.
-	if type_value == CollisionShape3D and node is CollisionShape3D:
-		count += 1
+func _count_collisions(node: Node) -> int:
+	var count := 1 if node is CollisionShape3D else 0
 	for child in node.get_children():
-		count += _count_type(child, type_value)
+		count += _count_collisions(child)
 	return count
 
 func _fail(message: String) -> bool:
