@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.29
+## Current build: 0.52
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -32,36 +32,57 @@
 - [x] 0.28 Deterministic generated encounters, loot and stable persistent entity IDs
 - [x] 0.29 Procedural exploration runtime, RegionCatalog, generation budget/job queue, chunk pooling and reusable authored landmark modules
 
-## Procedural foundation completed before 0.30
+## Living World — 0.30–0.34
 
-- [x] RegionCatalog is the single data source for streamed region definitions and authored slots
-- [x] Generation job queue interface with frame-time budget for future threaded/background data generation
+- [x] 0.30 Data-driven persistent NPC foundation with streamed regional NPC placement
+- [x] 0.31 Dialogue system with reusable conversation UI and NPC interaction
+- [x] 0.32 Quest state, objectives, rewards and first exploration quest chain
+- [x] 0.33 Merchant inventory, buying/selling and relic economy foundation
+- [x] 0.34 Faction/reputation foundation and NPC state reactions
+
+## Dungeons — 0.35–0.39
+
+- [x] 0.35–0.39 Deterministic modular dungeon generation, streamed dungeon runtime, persistent dungeon state, portals, treasure and boss foundation
+
+## Persistence — 0.40–0.44
+
+- [x] 0.40–0.44 Versioned atomic save files, corruption handling, automatic full-session persistence and restoration across world/dungeon state
+
+## Co-op Networking — 0.45–0.50
+
+- [x] 0.45–0.50 Server-authoritative 2–4 player session foundation with Host/Join UI, command routing, player ownership/state replication, WorldState deltas, authoritative combat and enemy replication
+
+## Procedural Generation 2.0 — 0.51–0.59
+
+- [x] 0.51 Scalable deterministic macro world graph, procedural region template catalog and streamed generated-region lifecycle
+- [x] 0.52 Deterministic graph topology metadata: neighbour IDs, degree, shortest-path depth, progression bands and route depth
+- [ ] 0.53 Graph-aware deterministic region content profiles driven by biome and progression depth
+- [ ] 0.54 Route hierarchy, gateways and deterministic shortcut candidates
+- [ ] 0.55 Hierarchical subregion graphs for larger regions without increasing active scene-tree cost
+- [ ] 0.56 Streaming priority derived from graph topology, player route and generation budget
+- [ ] 0.57 Deterministic landmark/settlement distribution constraints across the macro graph
+- [ ] 0.58 Multi-scale world regeneration tests and large-seed stress coverage
+- [ ] 0.59 Procedural Generation 2.0 integration/polish pass and performance gates
+
+## Verified architecture foundations
+
+- [x] RegionCatalog is the single data source for streamed authored region definitions and slots
+- [x] Generation job queue interface with frame-time budget
 - [x] Chunk pool lifecycle wired into streamed region unload/reload
 - [x] Runtime generation counters and generation budget
 - [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
 - [x] Same world seed reproduces the same terrain and procedural exploration content
-- [x] Automated determinism and runtime-foundation regression tests
-
-## Next large package: 0.30–0.34 — Living World
-
-- [ ] 0.30 Data-driven persistent NPC foundation with streamed regional NPC placement
-- [ ] 0.31 Dialogue system with reusable conversation UI and NPC interaction
-- [ ] 0.32 Quest state, objectives, rewards and first exploration quest chain
-- [ ] 0.33 Merchant inventory, buying/selling and relic economy foundation
-- [ ] 0.34 Faction/reputation foundation and NPC state reactions
+- [x] Automated generation, world graph, Living World, dungeon, save/persistence and networking regression tests
+- [x] Main-scene headless Godot smoke test
 
 ## Later milestones
 
-- [ ] 0.35–0.39 Dungeons, modular dungeon generation and bosses
-- [ ] 0.40–0.44 Save/load and full world persistence
-- [ ] 0.45–0.50 Singleplayer + 2–4 player co-op networking
-- [ ] 0.51–0.59 Procedural Generation 2.0 and larger region graphs
 - [ ] 0.60–0.69 Major world/content expansion
 - [ ] 0.70–0.79 Progression, magic, equipment and quest chains
 - [ ] 0.80–0.89 Full game progression and end-game structure
 - [ ] 0.90–0.99 Beta, optimization and polish
 - [ ] 1.00 Release target
 
-Architecture principle: persistent state is stored as stable IDs and data, not scene-tree objects. Static world generation is deterministic from the world seed. Generation data is kept separate from render and physics instances. Major landmarks remain authored/module-based while terrain, nature and minor exploration content can be generated procedurally.
+Architecture principle: persistent state is stored as stable IDs and data, not scene-tree objects. Static world generation is deterministic from the world seed. Generation data is kept separate from render and physics instances. Major landmarks remain authored/module-based while terrain, nature and minor exploration content can be generated procedurally. Network authority owns mutable gameplay state while clients may reconstruct deterministic static world data.
 
 Design principle: exploration first, light survival, memorable landmarks, mysterious retro fantasy atmosphere.
