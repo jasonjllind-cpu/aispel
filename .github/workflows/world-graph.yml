@@ -40,3 +40,14 @@ jobs:
             echo "World graph runtime errors detected"
             exit 1
           fi
+
+      - name: Verify graph-aware region content profiles
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/region_content_profile_test.gd 2>&1 | tee region-content.log
+          grep -q "REGION_CONTENT_PROFILE_OK" region-content.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" region-content.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Region content profile errors detected"
+            exit 1
+          fi
