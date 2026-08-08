@@ -7,6 +7,7 @@ const TEX_STONE := preload("res://assets/textures/stone.svg")
 const TEX_METAL := preload("res://assets/textures/metal.svg")
 
 var world: Node3D
+var faction_system: Node
 var active_player: Node
 var active_merchant_id: String = ""
 var panel: ColorRect
@@ -22,6 +23,7 @@ func _install() -> void:
 	await get_tree().process_frame
 	await get_tree().process_frame
 	world = get_parent() as Node3D
+	_resolve_faction_system()
 	if world == null:
 		return
 	_spawn_orrik_stall()
@@ -118,13 +120,20 @@ func _adjusted_sell_price(base_price: int, faction_id: String) -> int:
 	return max(1, int(round(float(base_price) / multiplier)))
 
 func _price_multiplier(faction_id: String) -> float:
-	var systems: Array[Node] = get_tree().get_nodes_in_group("faction_system")
-	if systems.is_empty():
-		return 1.0
-	var system: Node = systems[0]
-	if system.has_method("get_price_multiplier"):
-		return float(system.call("get_price_multiplier", faction_id))
+	_resolve_faction_system()
+	if is_instance_valid(faction_system) and faction_system.has_method("get_price_multiplier"):
+		return float(faction_system.call("get_price_multiplier", faction_id))
 	return 1.0
+
+func _resolve_faction_system() -> void:
+	if is_instance_valid(faction_system):
+		return
+	var tree: SceneTree = get_tree()
+	if tree == null:
+		return
+	var systems: Array[Node] = tree.get_nodes_in_group("faction_system")
+	if not systems.is_empty():
+		faction_system = systems[0]
 
 func _item_count(player: Node, item_name: String) -> int:
 	var inventory_value: Variant = player.get("inventory")
