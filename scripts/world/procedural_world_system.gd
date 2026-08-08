@@ -3,9 +3,11 @@ extends Node
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
 const TERRAIN_CHUNK_POOL_SCRIPT := preload("res://scripts/world/terrain_chunk_pool.gd")
+const BOUNDED_GENERATION_CACHE_SCRIPT := preload("res://scripts/world/bounded_generation_cache.gd")
 
 const CHECK_INTERVAL: float = 0.35
 const CHUNK_POOL_CAPACITY: int = 64
+const CHUNK_DATA_CACHE_CAPACITY: int = 256
 const REGION_CONFIG: Dictionary = {
 	"starting_valley": {
 		"biome": "green_highlands",
@@ -43,8 +45,8 @@ var world: Node3D
 var world_state: Node
 var generator: RefCounted
 var chunk_pool: RefCounted
+var chunk_data_cache: RefCounted
 var elapsed: float = 0.0
-var chunk_data_cache: Dictionary = {}
 var generated_region_count: int = 0
 var status_label: Label
 var unload_hooks: Dictionary = {}
@@ -62,6 +64,7 @@ func _install() -> void:
 	world_state = get_node_or_null("/root/WorldState")
 	generator = WORLD_GENERATOR_SCRIPT.new()
 	chunk_pool = TERRAIN_CHUNK_POOL_SCRIPT.new(TERRAIN_CHUNK_SCRIPT, CHUNK_POOL_CAPACITY)
+	chunk_data_cache = BOUNDED_GENERATION_CACHE_SCRIPT.new(CHUNK_DATA_CACHE_CAPACITY)
 	var seed_value: int = 8242601
 	if world_state != null:
 		seed_value = int(world_state.get("world_seed"))
@@ -74,6 +77,8 @@ func _install() -> void:
 func _exit_tree() -> void:
 	if chunk_pool != null and chunk_pool.has_method("clear"):
 		chunk_pool.call("clear")
+	if chunk_data_cache != null and chunk_data_cache.has_method("clear"):
+		chunk_data_cache.call("clear")
 
 func _process(delta: float) -> void:
 	elapsed += delta
@@ -160,12 +165,13 @@ func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_c
 		for chunk_x in range(min_coord, max_coord_exclusive):
 			var coord := Vector2i(chunk_x, chunk_z)
 			var cache_key: String = "%d:%s:%d:%d" % [_world_seed(), region_id, chunk_x, chunk_z]
-			var chunk_data: Dictionary
-			if chunk_data_cache.has(cache_key):
-				chunk_data = (chunk_data_cache[cache_key] as Dictionary).duplicate(true)
-			else:
+			var chunk_data: Dictionary = {}
+			if chunk_data_cache != null:
+				chunk_data = chunk_data_cache.call("get_value", cache_key) as Dictionary
+			if chunk_data.is_empty():
 				chunk_data = generator.call("generate_chunk_data", region_id, biome_id, region_center, coord, reserved_slots)
-				chunk_data_cache[cache_key] = chunk_data.duplicate(true)
+				if chunk_data_cache != null:
+					chunk_data_cache.call("put", cache_key, chunk_data)
 
 			var chunk: Node3D
 			if chunk_pool != null and chunk_pool.has_method("acquire"):
@@ -182,14 +188,14 @@ func _world_seed() -> int:
 	return 8242601
 
 func clear_generation_cache() -> void:
-	chunk_data_cache.clear()
+	if chunk_data_cache != null and chunk_data_cache.has_method("clear"):
+		chunk_data_cache.call("clear")
 
 func get_chunk_data(region_id: String, chunk_coord: Vector2i) -> Dictionary:
+	if chunk_data_cache == null:
+		return {}
 	var key: String = "%d:%s:%d:%d" % [_world_seed(), region_id, chunk_coord.x, chunk_coord.y]
-	var value: Variant = chunk_data_cache.get(key, {})
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	return {}
+	return chunk_data_cache.call("get_value", key) as Dictionary
 
 func get_generation_seed(region_id: String, layer_id: String, chunk_coord: Vector2i = Vector2i.ZERO) -> int:
 	if generator == null:
@@ -200,6 +206,11 @@ func get_pool_stats() -> Dictionary:
 	if chunk_pool == null or not chunk_pool.has_method("stats"):
 		return {"available": 0, "capacity": CHUNK_POOL_CAPACITY, "created": 0, "reused": 0, "released": 0, "discarded": 0}
 	return chunk_pool.call("stats") as Dictionary
+
+func get_generation_cache_stats() -> Dictionary:
+	if chunk_data_cache == null or not chunk_data_cache.has_method("stats"):
+		return {"size": 0, "capacity": CHUNK_DATA_CACHE_CAPACITY, "hits": 0, "misses": 0, "evictions": 0}
+	return chunk_data_cache.call("stats") as Dictionary
 
 func _build_status_ui(seed_value: int) -> void:
 	var layer := CanvasLayer.new()
@@ -217,4 +228,5 @@ func _refresh_status() -> void:
 	if status_label == null:
 		return
 	var pool_available: int = int(get_pool_stats().get("available", 0))
-	status_label.text = "Seed %d  •  %d generated terrain regions  •  pool %d  •  G seed menu" % [_world_seed(), generated_region_count, pool_available]
+	var cache_size: int = int(get_generation_cache_stats().get("size", 0))
+	status_label.text = "Seed %d  •  %d generated terrain regions  •  pool %d  •  cache %d  •  G seed menu" % [_world_seed(), generated_region_count, pool_available, cache_size]
