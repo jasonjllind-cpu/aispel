@@ -49,7 +49,7 @@ func request_local_attack(target_id: String) -> Dictionary:
 		})
 	var local_sequence: int = int(command_router.get("local_sequence")) + 1
 	command_router.set("local_sequence", local_sequence)
-	command_router.call("_submit_command").rpc_id(1, {
+	command_router.rpc_id(1, "_submit_command", {
 		"protocol": 1,
 		"sequence": local_sequence,
 		"action": "attack",
