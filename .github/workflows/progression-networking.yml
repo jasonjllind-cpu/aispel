@@ -1,0 +1,31 @@
+name: Progression Networking Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: progression-networking-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  progression-networking:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify authoritative progression replication
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_progression_replication_test.gd 2>&1 | tee progression-networking.log
+          grep -q "NETWORK_PROGRESSION_REPLICATION_OK" progression-networking.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-networking.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Progression networking errors detected"
+            exit 1
+          fi
