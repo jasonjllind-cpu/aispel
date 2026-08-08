@@ -32,17 +32,9 @@ jobs:
             echo "::error title=Campaign progression Godot failure::$message"
             exit "$status"
           fi
-          if ! grep -q "CAMPAIGN_PROGRESSION_CATALOG_OK" campaign-progression.log; then
-            message=$(tail -n 30 campaign-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Campaign progression marker missing::$message"
-            exit 1
-          fi
+          grep -q "CAMPAIGN_PROGRESSION_CATALOG_OK" campaign-progression.log
           errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" campaign-progression.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
-          if [ -n "$errors" ]; then
-            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Campaign progression script errors::$message"
-            exit 1
-          fi
+          if [ -n "$errors" ]; then echo "::error title=Campaign progression script errors::$errors"; exit 1; fi
 
       - name: Verify endgame region access
         shell: bash
@@ -57,14 +49,31 @@ jobs:
             echo "::error title=Endgame region access Godot failure::$message"
             exit "$status"
           fi
-          if ! grep -q "ENDGAME_REGION_ACCESS_OK" endgame-region-access.log; then
-            message=$(tail -n 30 endgame-region-access.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Endgame region access marker missing::$message"
+          grep -q "ENDGAME_REGION_ACCESS_OK" endgame-region-access.log
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-region-access.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then echo "::error title=Endgame region access script errors::$errors"; exit 1; fi
+
+      - name: Verify authoritative boss progression
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/boss_progression_state_test.gd 2>&1 | tee boss-progression.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 boss-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Boss progression Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "BOSS_PROGRESSION_STATE_OK" boss-progression.log; then
+            message=$(tail -n 30 boss-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Boss progression marker missing::$message"
             exit 1
           fi
-          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" endgame-region-access.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" boss-progression.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
           if [ -n "$errors" ]; then
             message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Endgame region access script errors::$message"
+            echo "::error title=Boss progression script errors::$message"
             exit 1
           fi
