@@ -82,3 +82,11 @@ jobs:
           godot --headless --path . --script res://scripts/tests/regional_progression_gate_test.gd 2>&1 | tee regional-progression.log
           grep -q "REGIONAL_PROGRESSION_GATE_OK" regional-progression.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" regional-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify integrated character builds
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/character_build_model_test.gd 2>&1 | tee character-build.log
+          grep -q "CHARACTER_BUILD_MODEL_OK" character-build.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" character-build.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
