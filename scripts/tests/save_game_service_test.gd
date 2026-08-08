@@ -22,7 +22,7 @@ func _init() -> void:
 
 	var before: Dictionary = state.call("snapshot")
 	var save_result: Dictionary = service.save_world(state, TEST_SLOT)
-	if not bool(save_result.get("ok", false)):
+	if not save_result.get("ok", false):
 		_fail("Save failed: %s" % str(save_result.get("error", "unknown")))
 		return
 	if not service.slot_exists(TEST_SLOT):
@@ -32,7 +32,7 @@ func _init() -> void:
 	state.call("new_world", 999)
 	state.call("set_flag", "mutated", true)
 	var load_result: Dictionary = service.load_world(state, TEST_SLOT)
-	if not bool(load_result.get("ok", false)):
+	if not load_result.get("ok", false):
 		_fail("Load failed: %s" % str(load_result.get("error", "unknown")))
 		return
 	var after: Dictionary = state.call("snapshot")
@@ -51,7 +51,7 @@ func _init() -> void:
 	file.resize(file.get_position())
 	file.close()
 	var corrupt_result: Dictionary = service.read_snapshot(TEST_SLOT)
-	if bool(corrupt_result.get("ok", false)) or str(corrupt_result.get("error", "")) != "checksum_mismatch":
+	if corrupt_result.get("ok", false) or str(corrupt_result.get("error", "")) != "checksum_mismatch":
 		_fail("Checksum corruption was not rejected")
 		return
 
