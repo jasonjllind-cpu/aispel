@@ -1,0 +1,45 @@
+name: Beta Optimization Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: beta-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  beta:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify runtime performance telemetry and budgets
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/runtime_performance_budget_test.gd 2>&1 | tee runtime-performance.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 40 runtime-performance.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Runtime performance Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "RUNTIME_PERFORMANCE_BUDGET_OK" runtime-performance.log; then
+            message=$(tail -n 40 runtime-performance.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Runtime performance marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" runtime-performance.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Runtime performance script errors::$message"
+            exit 1
+          fi
