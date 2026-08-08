@@ -15,8 +15,12 @@ Game / Session
     |
     +-- RegionManager         load/unload world regions
     |      |
-    |      +-- BiomeCatalog   data describing biome identity
-    |      +-- WorldGenerator deterministic generation from seed
+    |      +-- BiomeCatalog   biome identity and generation parameters
+    |      +-- WorldGenerator deterministic chunk data from world seed
+    |      |      |
+    |      |      +-- BiomeMap      climate sampling and transitions
+    |      |      +-- TerrainChunk  render/physics instance built from data
+    |      |
     |      +-- Landmarks      authored scenes / modules
     |      +-- Encounters     generated or authored encounters
     |
@@ -31,7 +35,7 @@ Systems should communicate through stable IDs and public methods rather than sto
 
 `res://scripts/core/world_state.gd` is a global service and is the source of truth for mutable world state.
 
-It currently owns:
+It owns:
 
 - world seed
 - current region
@@ -39,6 +43,7 @@ It currently owns:
 - global progression flags
 - persistent entity states
 - snapshot/restore data
+- deterministic generation seed namespaces
 
 Examples of persistent IDs:
 
@@ -52,7 +57,31 @@ boss:hollow_king
 
 The important rule is that generated objects do not become the save format. Their stable IDs and changed state become the save format.
 
-This also maps naturally to multiplayer later: the host/server owns WorldState and replicates state changes.
+This maps naturally to multiplayer later: the host/server owns WorldState and replicates state changes.
+
+## Deterministic world seed
+
+A world seed is a first-class part of the session. The same seed must recreate the same static generated data.
+
+The player can change the seed through the in-game F2 World Generator panel. A seed can also be supplied as a user command-line argument:
+
+```text
+--world-seed=583921
+```
+
+The seed is split into namespaces rather than using one global random stream:
+
+```text
+world seed
+  -> biome map seed
+  -> region + terrain seed
+  -> region + vegetation seed
+  -> region + road seed
+  -> region + POI seed
+  -> region + encounter seed
+```
+
+This prevents a decorative generator change from unnecessarily reshuffling progression-critical content.
 
 ## RegionManager
 
@@ -70,7 +99,7 @@ A region has:
 
 Regions are loaded near the player and unloaded when sufficiently far away. The current prototype uses generous distances, but the lifecycle is already separated from the content itself.
 
-Future region implementations should become scenes/modules instead of adding more code to the manager.
+The next migration target is a dedicated RegionCatalog so region definitions and authored placement slots have one source of truth. Region presentation should continue moving out of RegionManager into authored modules and generation systems.
 
 ## Biomes
 
@@ -81,12 +110,90 @@ Biome definitions describe parameters such as:
 - visual palette
 - vegetation density
 - rock density
-- terrain character
+- elevation character
+- terrain scale/detail/ridge character
 - encounter profile
 
-The procedural generator should consume biome data. It should not contain hard-coded checks such as `if biome == blackwood` for every object type once the system matures.
+`res://scripts/world/biome_map.gd` samples deterministic climate fields and produces a primary biome, secondary biome and blend amount. Regions keep a strong authored biome identity while borders can acquire deterministic secondary-biome influence.
 
-## Procedural generation
+## World Generator 1.0
+
+`res://scripts/world/world_generator.gd` produces generation data. It does not directly create scene-tree objects.
+
+The generator currently produces terrain chunk dictionaries containing:
+
+- format version
+- region ID
+- chunk coordinate
+- deterministic generation seed
+- vertices
+- normals
+- vertex colors
+- triangle indices
+- collision faces
+- biome sample metadata
+
+This separation is deliberate. Future background worker threads should be able to produce chunk data without touching the scene tree. The main thread can then hand completed data to a renderer/physics instance.
+
+## TerrainChunk runtime
+
+`res://scripts/world/terrain_chunk.gd` consumes generated chunk data and owns only runtime representation:
+
+- ArrayMesh rendering
+- vertex-color terrain material
+- concave terrain collision
+- reset/pool lifecycle hooks
+
+Generated data and scene objects must remain separate. Save files, multiplayer state and deterministic generation should never depend on MeshInstance3D or StaticBody3D identities.
+
+## ProceduralWorldSystem
+
+`res://scripts/world/procedural_world_system.gd` bridges streamed regions and WorldGenerator 1.0.
+
+It currently:
+
+- detects loaded streamed regions
+- requests deterministic chunk data
+- caches generated data separately from scene instances
+- creates terrain chunk runtime nodes
+- reserves flattened slots for authored landmarks
+- exposes deterministic layer seed lookups for later vegetation/road/POI generators
+
+The starting valley remains authored while streamed outer regions demonstrate generated terrain. This is intentional during migration: authored content stays playable while the procedural foundation replaces prototype region surfaces layer by layer.
+
+## Landmark reservation
+
+Major authored content must survive procedural generation.
+
+Each landmark can reserve a local slot containing:
+
+```text
+stable slot ID
+local center
+radius
+transition feather
+required surface height
+```
+
+Terrain generation flattens or blends toward the required height inside that slot. The same concept will later protect roads, settlements, dungeon entrances, boss arenas and quest-critical locations.
+
+## Chunk lifecycle
+
+The initial generated region uses reusable terrain chunks. Current chunks are small enough for synchronous generation, but the data boundary is designed for the later pipeline:
+
+```text
+request chunk
+  -> generation job queue
+  -> worker produces chunk data
+  -> main-thread build budget
+  -> TerrainChunk instance
+  -> active
+  -> release / pool
+```
+
+Before large-world production, the project should add a generation job queue, active build budget, runtime metrics and a wired chunk pool.
+
+## Procedural generation rules
 
 Generation must be deterministic.
 
@@ -100,118 +207,52 @@ World seed
       -> encounter seed
 ```
 
-Changing decorative generation must not ideally reshuffle progression-critical landmarks. Separate seed namespaces should therefore be used for each generation layer.
-
-Example:
-
-```text
-8242601:blackwood:terrain
-8242601:blackwood:vegetation
-8242601:blackwood:poi
-8242601:blackwood:encounters
-```
-
-## Authored versus generated content
+Changing decorative generation should not ideally reshuffle progression-critical landmarks. Separate seed namespaces are therefore mandatory for each generation layer.
 
 Use procedural generation for scale and authored content for meaning.
 
 Generated:
 
 - terrain variation
-- forests
-- rocks and vegetation
-- minor roads
-- camps
-- small ruins
-- optional encounters
-- common loot
+- forests and vegetation
+- rocks and ground clutter
+- roads between known anchors
+- minor ruins and camps
+- non-critical encounters
+- exploration loot and secrets
 
 Authored/module-based:
 
 - major castles
 - villages
-- story locations
-- important dungeons
+- story dungeons
 - bosses
-- quest-critical spaces
-- unique vistas
+- major quest locations
+- strong vista compositions
 
-Major landmarks receive placement constraints from the generator rather than being generated as arbitrary geometry.
+## Multiplayer direction
 
-## Save/load foundation
+Do not network generated meshes as gameplay state.
 
-A future save file should primarily serialize `WorldState.snapshot()` plus player progression.
+The future host/server should own:
 
-Do not serialize the entire scene tree.
-
-A loaded/generated entity checks its stable ID when entering the world:
-
-```text
-entity is generated
-    -> ask WorldState for entity ID
-    -> apply saved state
-```
-
-For example, a defeated enemy does not respawn just because its region was unloaded and rebuilt.
-
-## Multiplayer foundation
-
-The intended authority model is host/server authoritative.
-
-Long-term rule:
-
-```text
-Server/host:
 - world seed
-- region state
-- enemy authority
-- loot authority
-- progression flags
-- combat validation
+- authoritative WorldState
+- generated entity IDs
+- changed states such as dead/open/unlocked/collected
 
-Clients:
-- local input
-- rendering
-- interpolation
-- UI
-```
-
-Clients may generate deterministic static world geometry from the same seed, while the host/server synchronizes mutable state.
+Clients can reconstruct deterministic static world data from the same seed and receive authoritative state changes. This keeps network traffic focused on changes rather than world geometry.
 
 ## Performance direction
 
-For a large world, prefer:
+Large-world work should follow these priorities:
 
-- region/chunk streaming
-- MultiMesh for repeated vegetation
-- pooled encounter objects
-- LOD / visibility ranges
-- collision only where gameplay needs it
-- asynchronous generation where safe
-- generated data separated from rendered objects
+1. Stream regions and chunks instead of keeping the world loaded.
+2. Generate data separately from scene objects.
+3. Pool repeatable runtime objects.
+4. Use MultiMesh for high-count decorative vegetation where suitable.
+5. Apply per-frame build budgets so generation does not cause long stalls.
+6. Profile before increasing chunk resolution or active radius.
+7. Keep critical gameplay state independent from decoration.
 
-The current procedural primitives are intentionally simple. They prove lifecycle and data flow before expensive asset/content work is attached to the architecture.
-
-## Migration rule
-
-`world.gd` is legacy prototype composition code. Do not continue growing it indefinitely.
-
-New large systems should live under:
-
-```text
-scripts/core/
-scripts/world/
-scripts/gameplay/
-scripts/ui/
-```
-
-As systems mature, authored landmarks and actors should move into reusable `.tscn` scenes under:
-
-```text
-scenes/world/
-scenes/actors/
-scenes/landmarks/
-scenes/dungeons/
-```
-
-The project can be migrated incrementally while remaining playable.
+The project should prefer predictable bounded systems over clever systems with unbounded cost.
