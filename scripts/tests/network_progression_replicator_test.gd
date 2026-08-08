@@ -28,17 +28,24 @@ func _fixture(player_id: String) -> Dictionary:
 	var weapon: Dictionary = EQUIPMENT.roll_item("equipment:moon_blade", 12, 77082601, "network:test", 0)
 	build = BUILD.equip(build, weapon, 12)
 	build = BUILD.assign_spell(build, 0, "moon_bolt", 12, magic)
+	var quests: Array[String] = ["quest:frontier_oath:moon_path"]
 	return {
 		"progression": progression.call("to_dict"),
 		"magic": magic,
 		"build": build,
-		"quests": ["quest:frontier_oath:moon_path"]
+		"quests": quests
 	}
 
 func _validate_snapshots(replicator: Node) -> bool:
-	var player_id := "player:net:test"
-	var fixture := _fixture(player_id)
-	var snapshot: Dictionary = replicator.call("build_player_snapshot", player_id, fixture.progression, fixture.magic, fixture.build, fixture.quests, 1)
+	var player_id: String = "player:net:test"
+	var fixture: Dictionary = _fixture(player_id)
+	var progression: Dictionary = (fixture.get("progression", {}) as Dictionary)
+	var magic: Dictionary = (fixture.get("magic", {}) as Dictionary)
+	var build: Dictionary = (fixture.get("build", {}) as Dictionary)
+	var quests: Array[String] = []
+	for quest_id in fixture.get("quests", []) as Array:
+		quests.append(str(quest_id))
+	var snapshot: Dictionary = replicator.call("build_player_snapshot", player_id, progression, magic, build, quests, 1)
 	if snapshot.is_empty() or not bool(replicator.call("validate_snapshot", snapshot)):
 		return _fail("Valid authoritative snapshot failed validation")
 	var result: Dictionary = replicator.call("register_authoritative_snapshot", snapshot)
@@ -53,21 +60,23 @@ func _validate_snapshots(replicator: Node) -> bool:
 	return true
 
 func _validate_ordered_deltas(replicator: Node) -> bool:
-	var player_id := "player:net:test"
-	var fixture := _fixture(player_id)
-	var progression: Dictionary = fixture.progression.duplicate(true)
+	var player_id: String = "player:net:test"
+	var fixture: Dictionary = _fixture(player_id)
+	var progression: Dictionary = (fixture.get("progression", {}) as Dictionary).duplicate(true)
 	var progression_delta: Dictionary = replicator.call("build_delta", player_id, "progression", progression, 2)
 	var applied: Dictionary = replicator.call("apply_delta", progression_delta)
 	if applied.get("ok", false) != true or int(applied.get("revision", 0)) != 2:
 		return _fail("Ordered progression delta was not applied")
-	var magic: Dictionary = fixture.magic.duplicate(true)
+	var magic: Dictionary = (fixture.get("magic", {}) as Dictionary).duplicate(true)
 	magic = MAGIC.grant_mastery(magic, "frost", 160, "magic_discovery:test:frost")
 	var magic_delta: Dictionary = replicator.call("build_delta", player_id, "magic", magic, 3)
-	if replicator.call("apply_delta", magic_delta).get("ok", false) != true:
+	var magic_result: Dictionary = replicator.call("apply_delta", magic_delta)
+	if magic_result.get("ok", false) != true:
 		return _fail("Magic delta was not applied")
 	var quests: Array[String] = ["quest:frontier_oath:moon_path", "quest:blackwood_pact:root"]
 	var quest_delta: Dictionary = replicator.call("build_delta", player_id, "quests", quests, 4)
-	if replicator.call("apply_delta", quest_delta).get("ok", false) != true:
+	var quest_result: Dictionary = replicator.call("apply_delta", quest_delta)
+	if quest_result.get("ok", false) != true:
 		return _fail("Quest-state delta was not applied")
 	var final_snapshot: Dictionary = replicator.call("player_snapshot", player_id)
 	if int(final_snapshot.get("revision", 0)) != 4 or (final_snapshot.get("completed_quests", []) as Array).size() != 2:
@@ -75,19 +84,24 @@ func _validate_ordered_deltas(replicator: Node) -> bool:
 	return true
 
 func _validate_rejection_paths(replicator: Node) -> bool:
-	var player_id := "player:net:test"
+	var player_id: String = "player:net:test"
 	var current: Dictionary = replicator.call("player_snapshot", player_id)
 	var stale: Dictionary = replicator.call("build_delta", player_id, "build", current.get("build", {}), 3)
-	if str(replicator.call("apply_delta", stale).get("error", "")) != "stale_revision":
+	var stale_result: Dictionary = replicator.call("apply_delta", stale)
+	if str(stale_result.get("error", "")) != "stale_revision":
 		return _fail("Out-of-order delta was accepted")
-	var bad_owner_fixture := _fixture("player:other")
-	var invalid_owner: Dictionary = replicator.call("build_player_snapshot", player_id, bad_owner_fixture.progression, bad_owner_fixture.magic, bad_owner_fixture.build, [], 5)
+	var bad_owner_fixture: Dictionary = _fixture("player:other")
+	var bad_progression: Dictionary = bad_owner_fixture.get("progression", {}) as Dictionary
+	var bad_magic: Dictionary = bad_owner_fixture.get("magic", {}) as Dictionary
+	var bad_build: Dictionary = bad_owner_fixture.get("build", {}) as Dictionary
+	var empty_quests: Array[String] = []
+	var invalid_owner: Dictionary = replicator.call("build_player_snapshot", player_id, bad_progression, bad_magic, bad_build, empty_quests, 5)
 	if not invalid_owner.is_empty():
 		return _fail("Cross-player snapshot ownership mismatch was accepted")
 	var bad_quests: Array[String] = ["quest:duplicate", "quest:duplicate"]
-	if not replicator.call("build_delta", player_id, "quests", bad_quests, 5).is_empty():
+	if not (replicator.call("build_delta", player_id, "quests", bad_quests, 5) as Dictionary).is_empty():
 		return _fail("Duplicate quest IDs were accepted in replication payload")
-	if not replicator.call("build_delta", player_id, "inventory", {}, 5).is_empty():
+	if not (replicator.call("build_delta", player_id, "inventory", {}, 5) as Dictionary).is_empty():
 		return _fail("Unsupported replication kind was accepted")
 	var action: Dictionary = replicator.call("validate_client_action", 2, "equip", {"player_id": player_id, "instance_id": "item:test"})
 	if str(action.get("error", "")) != "network_session_missing":
