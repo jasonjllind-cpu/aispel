@@ -13,6 +13,7 @@ var service: RefCounted = SAVE_SERVICE_SCRIPT.new()
 var world: Node3D
 var world_state: Node
 var player: Node
+var dungeon_system: Node
 var dirty: bool = false
 var suppress_dirty: bool = false
 var dirty_elapsed: float = 0.0
@@ -36,6 +37,7 @@ func _install() -> void:
 	world_state = get_node_or_null("/root/WorldState")
 	if world == null or world_state == null:
 		return
+	_resolve_dungeon_system()
 	_load_world_state_early()
 	if world_state.has_signal("state_changed"):
 		world_state.connect("state_changed", Callable(self, "_on_world_state_changed"))
@@ -74,7 +76,7 @@ func save_now(slot_id: String = AUTOSAVE_SLOT) -> Dictionary:
 
 func load_now(slot_id: String = AUTOSAVE_SLOT) -> Dictionary:
 	var result: Dictionary = service.call("read_snapshot", slot_id)
-	if not result.get("ok", false):
+	if result.get("ok", false) != true:
 		return _record_error(result)
 	var value: Variant = result.get("snapshot", {})
 	if not value is Dictionary:
@@ -127,7 +129,7 @@ func _load_world_state_early() -> void:
 	if not service.call("slot_exists", AUTOSAVE_SLOT):
 		return
 	var result: Dictionary = service.call("read_snapshot", AUTOSAVE_SLOT)
-	if not result.get("ok", false):
+	if result.get("ok", false) != true:
 		last_error = str(result.get("error", "load_failed"))
 		return
 	var value: Variant = result.get("snapshot", {})
@@ -223,29 +225,32 @@ func _apply_player(data: Dictionary) -> void:
 	if player.has_method("_refresh_hud"):
 		player.call("_refresh_hud")
 
+func _resolve_dungeon_system() -> Node:
+	if is_instance_valid(dungeon_system):
+		return dungeon_system
+	if world != null:
+		dungeon_system = world.get_node_or_null("DungeonSystem")
+	return dungeon_system
+
 func _restore_dungeon_runtime(dungeon_id: String) -> bool:
-	if world == null:
+	var system: Node = _resolve_dungeon_system()
+	if system == null:
 		return false
-	var dungeon_system := world.get_node_or_null("DungeonSystem")
-	if dungeon_system == null:
-		return false
-	var generator_value: Variant = dungeon_system.get("generator")
+	var generator_value: Variant = system.get("generator")
 	if generator_value == null:
 		return false
-	if dungeon_system.has_method("_ensure_dungeon_instance"):
-		var instance_value: Variant = dungeon_system.call("_ensure_dungeon_instance", dungeon_id)
+	if system.has_method("_ensure_dungeon_instance"):
+		var instance_value: Variant = system.call("_ensure_dungeon_instance", dungeon_id)
 		if not instance_value is Node3D:
 			return false
-	dungeon_system.set("active_dungeon_id", dungeon_id)
+	system.set("active_dungeon_id", dungeon_id)
 	return true
 
 func _active_dungeon_id() -> String:
-	if world == null:
+	var system: Node = _resolve_dungeon_system()
+	if system == null:
 		return ""
-	var dungeon_system := world.get_node_or_null("DungeonSystem")
-	if dungeon_system == null:
-		return ""
-	var value: Variant = dungeon_system.get("active_dungeon_id")
+	var value: Variant = system.get("active_dungeon_id")
 	return str(value) if value != null else ""
 
 func _find_player() -> Node:
