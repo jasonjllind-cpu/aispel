@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.12
+## Current build: 0.16
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -14,19 +14,22 @@
 - [x] 0.10 World art pass: curved road, layered landscape, mountain silhouettes, vegetation and props
 - [x] 0.11 Landmark pass: ruined keep, gate towers, watchtower, moon shrine and torch lighting
 - [x] 0.12 Character art and procedural movement animation polish
+- [x] 0.13 Discoverable named locations and exploration notifications
+- [x] 0.14 Secrets, Old Key progression and treasure containers
+- [x] 0.15 Moon Shrine checkpoint, healing and respawn progression
+- [x] 0.16 Whispering Crypt interior, hidden reliquary and additional world encounters
 
-## Next large package: 0.13–0.16 — Exploration Systems
+## Next large package: 0.17–0.20 — Larger World & Biome Structure
 
-- [ ] Discoverable named locations and exploration notifications
-- [ ] Small secrets, locked interactions and use for the Old Key
-- [ ] Better loot presentation and treasure containers
-- [ ] Checkpoint / shrine interaction and respawn progression
-- [ ] More world encounters without turning the game into survival micromanagement
-- [ ] First small interior / crypt test area
+- [ ] Expand beyond the starting valley with connected exploration zones
+- [ ] Introduce distinct forest, highland and haunted-region visual identities
+- [ ] Add routes, shortcuts and stronger landmark navigation
+- [ ] Add more encounter variety and exploration rewards
+- [ ] Prepare world-state structure for later save/load and multiplayer authority
+- [ ] Keep survival light and exploration-focused
 
 ## Later milestones
 
-- [ ] 0.20 Larger world and biome structure
 - [ ] 0.30 NPCs, merchants and quests
 - [ ] 0.40 Dungeons, bosses and progression
 - [ ] 0.50 Singleplayer + 2–4 player co-op networking
