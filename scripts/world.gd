@@ -32,12 +32,14 @@ func _build_environment() -> void:
 	env.fog_sky_affect = 0.9
 	world_env.environment = env
 	add_child(world_env)
+
 	var moon := DirectionalLight3D.new()
 	moon.rotation_degrees = Vector3(-38, -32, 0)
 	moon.light_color = Color("c3ceff")
 	moon.light_energy = 1.45
 	moon.shadow_enabled = true
 	add_child(moon)
+
 	var fill := DirectionalLight3D.new()
 	fill.rotation_degrees = Vector3(-18, 140, 0)
 	fill.light_color = Color("6144b5")
@@ -45,10 +47,51 @@ func _build_environment() -> void:
 	add_child(fill)
 
 func _mat(color: Color, rough := 1.0) -> StandardMaterial3D:
-	var m := StandardMaterial3D.new()
-	m.albedo_color = color
-	m.roughness = rough
-	return m
+	var material := StandardMaterial3D.new()
+	material.albedo_color = color
+	material.roughness = rough
+	return material
+
+func _mesh_box(parent: Node3D, node_name: String, size: Vector3, pos: Vector3, color: Color, rough := 1.0) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var mesh := BoxMesh.new()
+	mesh.size = size
+	mesh_instance.mesh = mesh
+	mesh_instance.position = pos
+	mesh_instance.material_override = _mat(color, rough)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+func _mesh_cylinder(parent: Node3D, node_name: String, height: float, top_radius: float, bottom_radius: float, pos: Vector3, color: Color, rotation := Vector3.ZERO) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var mesh := CylinderMesh.new()
+	mesh.radial_segments = 6
+	mesh.rings = 1
+	mesh.height = height
+	mesh.top_radius = top_radius
+	mesh.bottom_radius = bottom_radius
+	mesh_instance.mesh = mesh
+	mesh_instance.position = pos
+	mesh_instance.rotation_degrees = rotation
+	mesh_instance.material_override = _mat(color)
+	parent.add_child(mesh_instance)
+	return mesh_instance
+
+func _mesh_sphere(parent: Node3D, node_name: String, radius: float, pos: Vector3, color: Color) -> MeshInstance3D:
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = node_name
+	var mesh := SphereMesh.new()
+	mesh.radial_segments = 8
+	mesh.rings = 4
+	mesh.radius = radius
+	mesh.height = radius * 2.0
+	mesh_instance.mesh = mesh
+	mesh_instance.position = pos
+	mesh_instance.material_override = _mat(color)
+	parent.add_child(mesh_instance)
+	return mesh_instance
 
 func _add_static_box(parent: Node3D, pos: Vector3, size: Vector3, color: Color) -> StaticBody3D:
 	var body := StaticBody3D.new()
@@ -95,29 +138,9 @@ func _build_forest() -> void:
 			continue
 		var tree := Node3D.new()
 		tree.position = p
-		var trunk := MeshInstance3D.new()
-		var cyl := CylinderMesh.new()
-		cyl.radial_segments = 6
-		cyl.rings = 1
-		cyl.top_radius = 0.22
-		cyl.bottom_radius = 0.38
-		cyl.height = rng.randf_range(3.5, 6.5)
-		trunk.mesh = cyl
-		trunk.position.y = cyl.height * 0.5
-		trunk.material_override = _mat(Color("3b271d"))
-		tree.add_child(trunk)
+		_mesh_cylinder(tree, "Trunk", rng.randf_range(3.5, 6.5), 0.22, 0.38, Vector3(0, 2.4, 0), Color("3b271d"))
 		for j in range(3):
-			var crown := MeshInstance3D.new()
-			var cone := CylinderMesh.new()
-			cone.radial_segments = 7
-			cone.rings = 1
-			cone.top_radius = 0.0
-			cone.bottom_radius = 1.5 - j * 0.2
-			cone.height = 2.6
-			crown.mesh = cone
-			crown.position.y = 3.2 + j * 1.05
-			crown.material_override = _mat(Color("153a22"))
-			tree.add_child(crown)
+			_mesh_cylinder(tree, "Crown%d" % j, 2.6, 0.0, 1.5 - j * 0.2, Vector3(0, 3.2 + j * 1.05, 0), Color("153a22"))
 		add_child(tree)
 
 func _build_ruin() -> void:
@@ -142,29 +165,44 @@ func _spawn_loot() -> void:
 	_create_loot(Vector3(5, 0.8, -18), "Ancient Coin", Color("d8b84b"))
 	_create_loot(Vector3(30, 1.0, -41), "Moon Shard", Color("8bd2ff"))
 	_create_loot(Vector3(-55, 1.0, -63), "Old Key", Color("c59a57"))
+	_create_loot(Vector3(31, 1.0, -52), "Moon Blade", Color("80d4ff"))
+	_create_loot(Vector3(-52, 1.0, -72), "Warden Mail", Color("707887"))
 
-func _create_loot(pos: Vector3, name: String, color: Color) -> void:
+func _create_loot(pos: Vector3, item_name: String, color: Color) -> void:
 	var area := Area3D.new()
 	area.position = pos
 	area.set_script(LOOT_SCRIPT)
-	area.item_name = name
+	area.item_name = item_name
 	var mesh := MeshInstance3D.new()
 	var shape_mesh := BoxMesh.new()
-	shape_mesh.size = Vector3(0.45, 0.45, 0.45)
+	if item_name == "Moon Blade":
+		shape_mesh.size = Vector3(0.14, 1.25, 0.10)
+	elif item_name == "Warden Mail":
+		shape_mesh.size = Vector3(0.75, 0.85, 0.30)
+	else:
+		shape_mesh.size = Vector3(0.45, 0.45, 0.45)
 	mesh.mesh = shape_mesh
 	mesh.material_override = _mat(color, 0.3)
 	area.add_child(mesh)
 	var col := CollisionShape3D.new()
 	var shape := SphereShape3D.new()
-	shape.radius = 0.7
+	shape.radius = 0.8
 	col.shape = shape
 	area.add_child(col)
 	add_child(area)
+
+func spawn_combat_loot(pos: Vector3) -> void:
+	var roll := randi() % 100
+	if roll < 30:
+		_create_loot(pos + Vector3(0, 0.7, 0), "Moon Shard", Color("8bd2ff"))
+	else:
+		_create_loot(pos + Vector3(0, 0.7, 0), "Ancient Coin", Color("d8b84b"))
 
 func _spawn_enemies() -> void:
 	_create_enemy(Vector3(10, 1.0, -30))
 	_create_enemy(Vector3(33, 1.0, -48))
 	_create_enemy(Vector3(-48, 1.0, -58))
+	_create_enemy(Vector3(-58, 1.0, -75))
 
 func _create_enemy(pos: Vector3) -> void:
 	var enemy := CharacterBody3D.new()
@@ -173,37 +211,44 @@ func _create_enemy(pos: Vector3) -> void:
 	var col := CollisionShape3D.new()
 	var cap := CapsuleShape3D.new()
 	cap.radius = 0.4
-	cap.height = 1.7
+	cap.height = 1.8
 	col.shape = cap
-	col.position.y = 0.85
+	col.position.y = 0.9
 	enemy.add_child(col)
-	var body := MeshInstance3D.new()
-	var body_mesh := CapsuleMesh.new()
-	body_mesh.radial_segments = 7
-	body_mesh.rings = 3
-	body_mesh.radius = 0.38
-	body_mesh.height = 1.65
-	body.mesh = body_mesh
-	body.position.y = 0.85
-	body.material_override = _mat(Color("5f665a"))
-	enemy.add_child(body)
-	var head := MeshInstance3D.new()
-	var sphere := SphereMesh.new()
-	sphere.radial_segments = 7
-	sphere.rings = 3
-	sphere.radius = 0.28
-	sphere.height = 0.56
-	head.mesh = sphere
-	head.position.y = 1.82
-	head.material_override = _mat(Color("9ba08f"))
-	enemy.add_child(head)
+	_build_warden_visual(enemy)
 	add_child(enemy)
+
+func _build_warden_visual(enemy: CharacterBody3D) -> void:
+	var visual := Node3D.new()
+	visual.name = "Visual"
+	enemy.add_child(visual)
+
+	_mesh_box(visual, "Torso", Vector3(0.72, 0.9, 0.42), Vector3(0, 1.25, 0), Color("4b514e"))
+	_mesh_box(visual, "Hips", Vector3(0.58, 0.30, 0.38), Vector3(0, 0.68, 0), Color("303531"))
+	_mesh_sphere(visual, "Head", 0.28, Vector3(0, 1.92, 0), Color("9da28f"))
+	_mesh_cylinder(visual, "Helmet", 0.34, 0.28, 0.36, Vector3(0, 2.10, 0), Color("343943"))
+	_mesh_cylinder(visual, "ArmL", 0.78, 0.12, 0.14, Vector3(-0.48, 1.22, 0), Color("444a47"), Vector3(0, 0, -7))
+	_mesh_cylinder(visual, "ArmR", 0.78, 0.12, 0.14, Vector3(0.48, 1.22, 0), Color("444a47"), Vector3(0, 0, 7))
+	_mesh_cylinder(visual, "LegL", 0.88, 0.13, 0.15, Vector3(-0.20, 0.25, 0), Color("252a27"))
+	_mesh_cylinder(visual, "LegR", 0.88, 0.13, 0.15, Vector3(0.20, 0.25, 0), Color("252a27"))
+	_mesh_box(visual, "TatteredCape", Vector3(0.72, 1.05, 0.08), Vector3(0, 1.05, 0.25), Color("241b28"))
+	_mesh_box(visual, "EyeGlow", Vector3(0.28, 0.06, 0.04), Vector3(0, 1.96, -0.27), Color("cc4a72"), 0.25)
+
+	var weapon_pivot := Node3D.new()
+	weapon_pivot.name = "WeaponPivot"
+	weapon_pivot.position = Vector3(0.52, 1.18, -0.02)
+	weapon_pivot.rotation_degrees = Vector3(0, 0, 30)
+	visual.add_child(weapon_pivot)
+	_mesh_box(weapon_pivot, "Blade", Vector3(0.11, 1.15, 0.09), Vector3(0, 0.58, 0), Color("858b91"), 0.35)
+	_mesh_box(weapon_pivot, "Guard", Vector3(0.42, 0.08, 0.10), Vector3(0, -0.02, 0), Color("5d4a36"))
+	_mesh_box(weapon_pivot, "Grip", Vector3(0.10, 0.35, 0.10), Vector3(0, -0.20, 0), Color("38271e"))
 
 func _spawn_player() -> void:
 	var player := CharacterBody3D.new()
 	player.name = "Player"
 	player.position = Vector3(0, 1.2, 22)
 	player.set_script(PLAYER_SCRIPT)
+
 	var collision := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
 	capsule.radius = 0.45
@@ -211,37 +256,9 @@ func _spawn_player() -> void:
 	collision.shape = capsule
 	collision.position.y = 0.9
 	player.add_child(collision)
-	var visual := Node3D.new()
-	visual.name = "Visual"
-	player.add_child(visual)
-	var body_mesh := MeshInstance3D.new()
-	var body_shape := CapsuleMesh.new()
-	body_shape.radial_segments = 8
-	body_shape.rings = 4
-	body_shape.radius = 0.42
-	body_shape.height = 1.7
-	body_mesh.mesh = body_shape
-	body_mesh.position.y = 0.9
-	body_mesh.material_override = _mat(Color("272538"))
-	visual.add_child(body_mesh)
-	var head := MeshInstance3D.new()
-	var head_shape := SphereMesh.new()
-	head_shape.radial_segments = 8
-	head_shape.rings = 4
-	head_shape.radius = 0.32
-	head_shape.height = 0.64
-	head.mesh = head_shape
-	head.position.y = 1.9
-	head.material_override = _mat(Color("b9ad92"))
-	visual.add_child(head)
-	var sword := MeshInstance3D.new()
-	var sword_shape := BoxMesh.new()
-	sword_shape.size = Vector3(0.12, 1.8, 0.18)
-	sword.mesh = sword_shape
-	sword.position = Vector3(0.55, 1.2, 0)
-	sword.rotation_degrees.z = -18
-	sword.material_override = _mat(Color("a8b7c7"), 0.35)
-	visual.add_child(sword)
+
+	_build_player_visual(player)
+
 	var pivot := Node3D.new()
 	pivot.name = "CameraPivot"
 	pivot.position.y = 1.65
@@ -257,6 +274,32 @@ func _spawn_player() -> void:
 	cam.fov = 66
 	arm.add_child(cam)
 	add_child(player)
+
+func _build_player_visual(player: CharacterBody3D) -> void:
+	var visual := Node3D.new()
+	visual.name = "Visual"
+	player.add_child(visual)
+
+	_mesh_box(visual, "Torso", Vector3(0.78, 0.95, 0.44), Vector3(0, 1.28, 0), Color("29273b"))
+	_mesh_box(visual, "Hips", Vector3(0.62, 0.32, 0.40), Vector3(0, 0.70, 0), Color("1d1d27"))
+	_mesh_sphere(visual, "Head", 0.29, Vector3(0, 1.98, 0), Color("b9ad92"))
+	_mesh_cylinder(visual, "Helmet", 0.34, 0.27, 0.37, Vector3(0, 2.16, 0), Color("535766"))
+	_mesh_cylinder(visual, "ArmL", 0.80, 0.13, 0.15, Vector3(-0.50, 1.25, 0), Color("343243"), Vector3(0, 0, -8))
+	_mesh_cylinder(visual, "ArmR", 0.80, 0.13, 0.15, Vector3(0.50, 1.25, 0), Color("343243"), Vector3(0, 0, 8))
+	_mesh_cylinder(visual, "LegL", 0.90, 0.14, 0.16, Vector3(-0.21, 0.26, 0), Color("242331"))
+	_mesh_cylinder(visual, "LegR", 0.90, 0.14, 0.16, Vector3(0.21, 0.26, 0), Color("242331"))
+	_mesh_box(visual, "Cape", Vector3(0.78, 1.20, 0.08), Vector3(0, 1.10, 0.26), Color("4d2239"))
+	_mesh_box(visual, "ShoulderL", Vector3(0.30, 0.18, 0.48), Vector3(-0.47, 1.58, 0), Color("4c4e59"))
+	_mesh_box(visual, "ShoulderR", Vector3(0.30, 0.18, 0.48), Vector3(0.47, 1.58, 0), Color("4c4e59"))
+
+	var weapon_pivot := Node3D.new()
+	weapon_pivot.name = "WeaponPivot"
+	weapon_pivot.position = Vector3(0.55, 1.22, -0.05)
+	weapon_pivot.rotation_degrees = Vector3(0, 0, -25)
+	visual.add_child(weapon_pivot)
+	_mesh_box(weapon_pivot, "Blade", Vector3(0.12, 1.25, 0.09), Vector3(0, 0.62, 0), Color("a5a8ad"), 0.35)
+	_mesh_box(weapon_pivot, "Guard", Vector3(0.46, 0.08, 0.11), Vector3(0, -0.02, 0), Color("776344"))
+	_mesh_box(weapon_pivot, "Grip", Vector3(0.11, 0.36, 0.11), Vector3(0, -0.22, 0), Color("3b251c"))
 
 func _build_retro_postprocess() -> void:
 	var layer := CanvasLayer.new()
@@ -274,13 +317,13 @@ func _build_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 100
 	var label := Label.new()
-	label.text = "RETRO FANTASY  •  WASD move  •  Shift run  •  Space jump  •  E interact"
+	label.text = "BUILD 0.08  •  WASD move  •  Shift run  •  LMB attack  •  E interact  •  I inventory  •  R equip"
 	label.position = Vector2(10, 8)
-	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_font_size_override("font_size", 10)
 	layer.add_child(label)
 	var objective := Label.new()
-	objective.text = "Follow the old road. Search the ruins and tower."
-	objective.position = Vector2(10, 26)
-	objective.add_theme_font_size_override("font_size", 10)
+	objective.text = "Defeat the Hollow Wardens. Search the ruin for the Moon Blade and the tower for Warden Mail."
+	objective.position = Vector2(10, 24)
+	objective.add_theme_font_size_override("font_size", 9)
 	layer.add_child(objective)
 	add_child(layer)
