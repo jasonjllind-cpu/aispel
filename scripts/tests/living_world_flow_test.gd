@@ -62,7 +62,8 @@ func _run_quest_flow(npc_system: Node, world_state: Node, player: MockPlayer) ->
 	var state: Dictionary = world_state.call("get_entity_state", "quest:whispers_in_blackwood")
 	if str(state.get("status", "")) != "active":
 		return _fail("Starter quest was not persisted as active")
-	if not bool(world_state.call("mark_region_discovered", "blackwood")):
+	world_state.call("mark_region_discovered", "blackwood")
+	if not bool(world_state.call("is_region_discovered", "blackwood")):
 		return _fail("Blackwood discovery did not register")
 	if not bool(npc_system.call("_quest_objective_complete", quest)):
 		return _fail("Blackwood discovery did not complete the quest objective")
