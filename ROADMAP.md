@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.89
+## Current build: 0.90
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -105,7 +105,7 @@
 
 ## Beta, Optimization & Polish — 0.90–0.99
 
-- [ ] 0.90 Runtime performance telemetry, budgets and automated regression gates
+- [x] 0.90 Runtime performance telemetry, budgets and automated regression gates
 - [ ] 0.91 Streaming, memory, pooling and scene-tree optimization against measured budgets
 - [ ] 0.92 Co-op soak, reconnect, late-join reliability and authority hardening
 - [ ] 0.93 Save/backup/recovery/migration soak and destructive-failure coverage
@@ -126,6 +126,7 @@
 - [x] Same world seed reproduces the same terrain and procedural exploration content
 - [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion, progression, campaign and end-game regression tests
 - [x] Full end-game seed stress, save migration, late-join and release-candidate gameplay gates
+- [x] Runtime performance telemetry and hard/soft beta budgets
 - [x] Main-scene headless Godot smoke test
 
 ## Release
