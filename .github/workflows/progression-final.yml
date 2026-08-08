@@ -1,0 +1,44 @@
+name: Progression 0.77-0.79 Final Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: progression-final-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  final-progression-gate:
+    runs-on: ubuntu-latest
+    container:
+      image: barichello/godot-ci:4.3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Verify authoritative progression networking
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_progression_replication_test.gd 2>&1 | tee progression-networking.log
+          grep -q "NETWORK_PROGRESSION_REPLICATION_OK" progression-networking.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-networking.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify progression save migration and balance coverage
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/progression_save_migration_test.gd 2>&1 | tee progression-save.log
+          grep -q "PROGRESSION_SAVE_MIGRATION_OK" progression-save.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify progression integration and polish
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/progression_integration_test.gd 2>&1 | tee progression-integration.log
+          grep -q "PROGRESSION_INTEGRATION_OK" progression-integration.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-integration.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
