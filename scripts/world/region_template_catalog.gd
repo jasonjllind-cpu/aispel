@@ -51,6 +51,26 @@ const TEMPLATES: Dictionary = {
 		"poi_count": 3,
 		"landmark_module": "moon_obelisk",
 		"tags": ["magic", "grove", "secret"]
+	},
+	"ashen_fen_march": {
+		"id": "ashen_fen_march",
+		"display_name": "Ashen Fen March",
+		"biome": "ashen_fen",
+		"weight": 0.72,
+		"radius": 69.0,
+		"poi_count": 4,
+		"landmark_module": "charred_watch",
+		"tags": ["fen", "ash", "fire", "ruins"]
+	},
+	"frostmere_expanse": {
+		"id": "frostmere_expanse",
+		"display_name": "Frostmere Expanse",
+		"biome": "frostmere",
+		"weight": 0.68,
+		"radius": 72.0,
+		"poi_count": 3,
+		"landmark_module": "frozen_waystone",
+		"tags": ["frost", "lake", "ancient", "vista"]
 	}
 }
 
