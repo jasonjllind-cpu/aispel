@@ -102,6 +102,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify save game service
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/save_game_service_test.gd 2>&1 | tee godot-save.log
+          grep -q "SAVE_GAME_SERVICE_OK" godot-save.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Save game service errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
