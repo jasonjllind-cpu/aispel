@@ -1,4 +1,4 @@
-[gd_scene load_steps=16 format=3]
+[gd_scene load_steps=19 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
@@ -15,6 +15,9 @@
 [ext_resource type="Script" path="res://scripts/network/network_command_router.gd" id="13_network_commands"]
 [ext_resource type="Script" path="res://scripts/network/network_player_manager.gd" id="14_network_players"]
 [ext_resource type="Script" path="res://scripts/network/network_world_state_replicator.gd" id="15_network_world"]
+[ext_resource type="Script" path="res://scripts/network/network_combat_authority.gd" id="16_network_combat"]
+[ext_resource type="Script" path="res://scripts/network/network_enemy_manager.gd" id="17_network_enemies"]
+[ext_resource type="Script" path="res://scripts/network/network_menu.gd" id="18_network_menu"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_world")
@@ -33,6 +36,15 @@ script = ExtResource("14_network_players")
 
 [node name="NetworkWorldStateReplicator" type="Node" parent="."]
 script = ExtResource("15_network_world")
+
+[node name="NetworkCombatAuthority" type="Node" parent="."]
+script = ExtResource("16_network_combat")
+
+[node name="NetworkEnemyManager" type="Node" parent="."]
+script = ExtResource("17_network_enemies")
+
+[node name="NetworkMenu" type="Node" parent="."]
+script = ExtResource("18_network_menu")
 
 [node name="ExplorationSystem" type="Node" parent="."]
 script = ExtResource("2_exploration")
