@@ -37,6 +37,7 @@ func record_frame_sample(frame_msec: float) -> void:
 
 func collect_snapshot_now() -> Dictionary:
 	sample_revision += 1
+	var tree: SceneTree = get_tree() if is_inside_tree() else null
 	var snapshot: Dictionary = {
 		"format_version": 1,
 		"revision": sample_revision,
@@ -47,9 +48,9 @@ func collect_snapshot_now() -> Dictionary:
 		"frame_p99_msec": _percentile(frame_samples_msec, 0.99),
 		"scene_nodes": float(Performance.get_monitor(Performance.OBJECT_NODE_COUNT)),
 		"orphan_nodes": float(Performance.get_monitor(Performance.OBJECT_ORPHAN_NODE_COUNT)),
-		"generated_terrain_chunks": float(get_tree().get_nodes_in_group("generated_terrain_chunk").size()),
-		"active_enemies": float(get_tree().get_nodes_in_group("enemy").size()),
-		"interactables": float(get_tree().get_nodes_in_group("interactable").size()),
+		"generated_terrain_chunks": float(tree.get_nodes_in_group("generated_terrain_chunk").size()) if tree != null else 0.0,
+		"active_enemies": float(tree.get_nodes_in_group("enemy").size()) if tree != null else 0.0,
+		"interactables": float(tree.get_nodes_in_group("interactable").size()) if tree != null else 0.0,
 		"generation_pending_jobs": 0.0,
 		"generation_last_batch_msec": 0.0,
 		"exploration_last_build_msec": 0.0,
