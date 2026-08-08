@@ -12,7 +12,7 @@ var world_seed: int = 8242601
 var height_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var ridge_noise := FastNoiseLite.new()
-var biome_map: BiomeMap
+var biome_map: RefCounted
 
 func configure(seed_value: int) -> void:
 	world_seed = seed_value if seed_value != 0 else 8242601
@@ -23,7 +23,7 @@ func configure(seed_value: int) -> void:
 	ridge_noise.seed = _layer_seed("terrain:ridge")
 	ridge_noise.frequency = 0.0065
 	biome_map = BIOME_MAP_SCRIPT.new()
-	biome_map.configure(_layer_seed("biome_map"))
+	biome_map.call("configure", _layer_seed("biome_map"))
 
 func generation_seed(region_id: String, layer_id: String, chunk_coord: Vector2i = Vector2i.ZERO) -> int:
 	return _layer_seed("%s:%s:%d:%d" % [region_id, layer_id, chunk_coord.x, chunk_coord.y])
@@ -58,8 +58,8 @@ func generate_chunk_data(region_id: String, preferred_biome: String, region_cent
 			var normal := Vector3(left_h - right_h, step * 2.0, down_h - up_h).normalized()
 			normals.append(normal)
 
-			var biome_sample: Dictionary = biome_map.sample(global_x, global_z, preferred_biome)
-			var color: Color = biome_map.ground_color(biome_sample)
+			var biome_sample: Dictionary = biome_map.call("sample", global_x, global_z, preferred_biome)
+			var color: Color = biome_map.call("ground_color", biome_sample)
 			var shade: float = clamp(0.94 + normal.y * 0.08 + height * 0.018, 0.86, 1.08)
 			colors.append(Color(color.r * shade, color.g * shade, color.b * shade, 1.0))
 
@@ -82,7 +82,7 @@ func generate_chunk_data(region_id: String, preferred_biome: String, region_cent
 		collision_faces.append(vertices[index])
 
 	var center_global := Vector2(region_center.x + origin_x + CHUNK_SIZE * 0.5, region_center.z + origin_z + CHUNK_SIZE * 0.5)
-	var center_biome: Dictionary = biome_map.sample(center_global.x, center_global.y, preferred_biome)
+	var center_biome: Dictionary = biome_map.call("sample", center_global.x, center_global.y, preferred_biome)
 	return {
 		"format_version": 1,
 		"region_id": region_id,
@@ -104,15 +104,18 @@ func sample_height_at(region_center: Vector3, preferred_biome: String, local_pos
 func sample_biome_at(world_position: Vector3, preferred_biome: String) -> Dictionary:
 	if biome_map == null:
 		configure(world_seed)
-	return biome_map.sample(world_position.x, world_position.z, preferred_biome)
+	return biome_map.call("sample", world_position.x, world_position.z, preferred_biome)
 
 func _sample_height(global_x: float, global_z: float, local_x: float, local_z: float, biome: Dictionary, reserved_slots: Array[Dictionary]) -> float:
 	var elevation: float = float(biome.get("elevation", 1.0))
+	var terrain_scale: float = float(biome.get("terrain_scale", 1.0))
+	var detail_strength: float = float(biome.get("terrain_detail", 0.4))
+	var ridge_strength: float = float(biome.get("terrain_ridge", 0.15))
 	var base_value: float = (height_noise.get_noise_2d(global_x, global_z) + 1.0) * 0.5
 	var detail_value: float = detail_noise.get_noise_2d(global_x, global_z)
 	var ridge_value: float = abs(ridge_noise.get_noise_2d(global_x, global_z))
-	var amplitude: float = 0.62 + elevation * 0.24
-	var height: float = 0.10 + base_value * amplitude + detail_value * 0.14 + ridge_value * 0.22
+	var amplitude: float = (0.55 + elevation * 0.20) * terrain_scale
+	var height: float = 0.10 + base_value * amplitude + detail_value * detail_strength * 0.22 + ridge_value * ridge_strength * 0.55
 
 	var road_t: float = clamp((48.0 - local_z) / 96.0, 0.0, 1.0)
 	var road_x: float = sin(road_t * TAU * 1.15) * 5.0
