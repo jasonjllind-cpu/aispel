@@ -211,6 +211,7 @@ func _load_graph_region(node: Dictionary) -> Node3D:
 	region.set_meta("distribution_role", str(node.get("distribution_role", "exploration")))
 	region.set_meta("distribution_id", str(node.get("distribution_id", "")))
 	region.set_meta("content_profile_id", str(node.get("content_profile_id", "")))
+	region.set_meta("content_theme_id", str(node.get("content_theme_id", "")))
 	region.set_meta("subregion_graph_id", "subgraph:%s" % stable_id)
 	region.add_to_group("generated_graph_region")
 	regions_root.add_child(region)
