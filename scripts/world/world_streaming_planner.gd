@@ -3,7 +3,7 @@ class_name WorldStreamingPlanner
 
 const FORMAT_VERSION: int = 1
 
-static func rank_candidates(nodes: Array, player_position: Vector3, current_region_id: String, route_target_id: String, max_distance: float, load_budget: int) -> Array[Dictionary]:
+static func rank_candidates(nodes: Array, player_position: Vector3, current_region_id: String, route_target_id: String, max_distance: float, load_budget: int, excluded_ids: Dictionary = {}) -> Array[Dictionary]:
 	if load_budget <= 0:
 		return []
 	var nodes_by_id: Dictionary = _index_nodes(nodes)
@@ -12,6 +12,8 @@ static func rank_candidates(nodes: Array, player_position: Vector3, current_regi
 	var ranked: Array[Dictionary] = []
 	for stable_id_value in nodes_by_id.keys():
 		var stable_id: String = str(stable_id_value)
+		if excluded_ids.has(stable_id):
+			continue
 		var node: Dictionary = nodes_by_id[stable_id] as Dictionary
 		if node.get("anchor", false) == true:
 			continue
