@@ -4,10 +4,11 @@ class_name WorldGraphGenerator
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const TEMPLATE_CATALOG := preload("res://scripts/world/region_template_catalog.gd")
 const CONTENT_PROFILE_CATALOG := preload("res://scripts/world/region_content_profile_catalog.gd")
+const CONTENT_THEME_CATALOG := preload("res://scripts/world/region_content_theme_catalog.gd")
 const ROUTE_PLANNER := preload("res://scripts/world/world_route_planner.gd")
 const DISTRIBUTION_PLANNER := preload("res://scripts/world/world_distribution_planner.gd")
 
-const GRAPH_FORMAT_VERSION: int = 5
+const GRAPH_FORMAT_VERSION: int = 6
 const REGION_SPACING: float = 170.0
 const DEFAULT_NODE_COUNT: int = 18
 const START_REGION_ID: String = "region:starting_valley"
@@ -61,6 +62,8 @@ func generate_graph(target_node_count: int = DEFAULT_NODE_COUNT) -> Dictionary:
 		"start_region_id": START_REGION_ID,
 		"max_graph_depth": int(topology.get("max_graph_depth", 0)),
 		"progression_band_counts": topology.get("progression_band_counts", {}).duplicate(true),
+		"content_theme_format_version": CONTENT_THEME_CATALOG.FORMAT_VERSION,
+		"content_theme_counts": topology.get("content_theme_counts", {}).duplicate(true),
 		"route_format_version": int(route_plan.get("format_version", 0)),
 		"route_class_counts": route_plan.get("route_class_counts", {}).duplicate(true),
 		"gateway_count": int(route_plan.get("gateway_count", 0)),
@@ -233,6 +236,7 @@ func _annotate_topology(nodes: Array[Dictionary], edges: Array[Dictionary], star
 
 	var max_depth: int = 0
 	var band_counts: Dictionary = {"heartland": 0, "frontier": 0, "wilds": 0}
+	var theme_counts: Dictionary = {}
 	var annotated_nodes: Array[Dictionary] = []
 	for source_node in nodes:
 		var node: Dictionary = source_node.duplicate(true)
@@ -242,14 +246,19 @@ func _annotate_topology(nodes: Array[Dictionary], edges: Array[Dictionary], star
 		var band: String = _progression_band_for_depth(depth)
 		var biome_id: String = str(node.get("biome", "green_highlands"))
 		var content_profile: Dictionary = CONTENT_PROFILE_CATALOG.build_profile(biome_id, band, depth)
+		var content_theme: Dictionary = CONTENT_THEME_CATALOG.select_theme(world_seed, stable_id, biome_id, band)
+		var content_theme_id: String = str(content_theme.get("id", ""))
 		node["neighbor_ids"] = neighbours
 		node["degree"] = neighbours.size()
 		node["graph_depth"] = depth
 		node["progression_band"] = band
 		node["content_profile_id"] = str(content_profile.get("profile_id", ""))
 		node["content_profile"] = content_profile
+		node["content_theme_id"] = content_theme_id
+		node["content_theme"] = content_theme
 		max_depth = maxi(max_depth, depth)
 		band_counts[band] = int(band_counts.get(band, 0)) + 1
+		theme_counts[content_theme_id] = int(theme_counts.get(content_theme_id, 0)) + 1
 		annotated_nodes.append(node)
 	annotated_nodes.sort_custom(_node_less)
 
@@ -268,7 +277,8 @@ func _annotate_topology(nodes: Array[Dictionary], edges: Array[Dictionary], star
 		"nodes": annotated_nodes,
 		"edges": annotated_edges,
 		"max_graph_depth": max_depth,
-		"progression_band_counts": band_counts
+		"progression_band_counts": band_counts,
+		"content_theme_counts": theme_counts
 	}
 
 func _progression_band_for_depth(depth: int) -> String:
