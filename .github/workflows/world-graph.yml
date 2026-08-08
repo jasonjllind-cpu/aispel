@@ -78,6 +78,17 @@ jobs:
             exit 1
           fi
 
+      - name: Verify world content expansion
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_content_expansion_test.gd 2>&1 | tee world-content-expansion.log
+          grep -q "WORLD_CONTENT_EXPANSION_OK" world-content-expansion.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" world-content-expansion.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World content expansion errors detected"
+            exit 1
+          fi
+
       - name: Verify route hierarchy gateways and shortcuts
         shell: bash
         run: |
