@@ -127,3 +127,28 @@ jobs:
             echo "::error title=Endgame choice consequence script errors::$message"
             exit 1
           fi
+
+      - name: Verify persistent deterministic postgame world profile
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/postgame_world_profile_test.gd 2>&1 | tee postgame-world-profile.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 postgame-world-profile.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Postgame world profile Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "POSTGAME_WORLD_PROFILE_OK" postgame-world-profile.log; then
+            message=$(tail -n 30 postgame-world-profile.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Postgame world profile marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" postgame-world-profile.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Postgame world profile script errors::$message"
+            exit 1
+          fi
