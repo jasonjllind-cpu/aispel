@@ -32,9 +32,10 @@ func put(key: String, value: Dictionary) -> void:
 		return
 	values[key] = value.duplicate(true)
 	access_order.append(key)
-	while values.size() > capacity:
-		var oldest: String = access_order.pop_front()
-		if values.erase(oldest):
+	while values.size() > capacity and not access_order.is_empty():
+		var oldest: String = str(access_order.pop_front())
+		if values.has(oldest):
+			values.erase(oldest)
 			evictions += 1
 
 func clear() -> void:
