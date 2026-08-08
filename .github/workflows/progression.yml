@@ -28,3 +28,13 @@ jobs:
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" player-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then
             exit 1
           fi
+
+      - name: Verify data-driven spell catalog
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/spell_catalog_test.gd 2>&1 | tee spell-catalog.log
+          grep -q "SPELL_CATALOG_OK" spell-catalog.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" spell-catalog.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
