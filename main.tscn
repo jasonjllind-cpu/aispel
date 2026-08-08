@@ -1,7 +1,7 @@
 [gd_scene load_steps=7 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
-[ext_resource type="Script" path="res://scripts/exploration_system.gd" id="2_exploration"]
+[ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
 [ext_resource type="Script" path="res://scripts/world/region_manager_runtime.gd" id="3_regions"]
 [ext_resource type="Script" path="res://scripts/world/procedural_world_runtime.gd" id="4_generator"]
 [ext_resource type="Script" path="res://scripts/world/world_seed_menu.gd" id="5_seed_menu"]
