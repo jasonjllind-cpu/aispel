@@ -7,6 +7,7 @@ const SESSION_FORMAT: String = "RETRO_FANTASY_SESSION"
 const SESSION_VERSION: int = 1
 const STATE_DEBOUNCE_SECONDS: float = 1.5
 const PERIODIC_SAVE_SECONDS: float = 20.0
+const MAX_RESTORE_RETRIES: int = 8
 
 var service: RefCounted = SAVE_SERVICE_SCRIPT.new()
 var world: Node3D
@@ -19,6 +20,8 @@ var periodic_elapsed: float = 0.0
 var last_save_ok: bool = false
 var last_error: String = ""
 var pending_session: Dictionary = {}
+var restore_retry_count: int = 0
+var restore_retry_queued: bool = false
 
 func _ready() -> void:
 	add_to_group("persistence_system")
@@ -82,6 +85,7 @@ func load_now(slot_id: String = AUTOSAVE_SLOT) -> Dictionary:
 	suppress_dirty = true
 	_restore_world_snapshot(session)
 	pending_session = session.duplicate(true)
+	restore_retry_count = 0
 	_apply_pending_session()
 	suppress_dirty = false
 	dirty = false
@@ -135,6 +139,7 @@ func _load_world_state_early() -> void:
 	suppress_dirty = true
 	_restore_world_snapshot(session)
 	pending_session = session.duplicate(true)
+	restore_retry_count = 0
 	suppress_dirty = false
 
 func _restore_world_snapshot(session: Dictionary) -> void:
@@ -150,17 +155,34 @@ func _apply_pending_session() -> void:
 	if player == null or not is_instance_valid(player):
 		player = _find_player()
 	if player == null:
+		_queue_restore_retry()
 		return
 	var runtime_value: Variant = pending_session.get("runtime", {})
 	var dungeon_id := ""
 	if runtime_value is Dictionary:
 		dungeon_id = str((runtime_value as Dictionary).get("active_dungeon_id", ""))
-	if not dungeon_id.is_empty():
-		_restore_dungeon_runtime(dungeon_id)
+	if not dungeon_id.is_empty() and not _restore_dungeon_runtime(dungeon_id):
+		_queue_restore_retry()
+		return
 	var player_value: Variant = pending_session.get("player", {})
 	if player_value is Dictionary:
 		_apply_player(player_value as Dictionary)
 	pending_session.clear()
+	restore_retry_count = 0
+	restore_retry_queued = false
+
+func _queue_restore_retry() -> void:
+	if restore_retry_queued or restore_retry_count >= MAX_RESTORE_RETRIES:
+		return
+	restore_retry_queued = true
+	call_deferred("_retry_pending_session")
+
+func _retry_pending_session() -> void:
+	restore_retry_queued = false
+	restore_retry_count += 1
+	if get_tree() != null:
+		await get_tree().process_frame
+	_apply_pending_session()
 
 func _capture_player() -> Dictionary:
 	if player == null or not is_instance_valid(player):
@@ -201,15 +223,21 @@ func _apply_player(data: Dictionary) -> void:
 	if player.has_method("_refresh_hud"):
 		player.call("_refresh_hud")
 
-func _restore_dungeon_runtime(dungeon_id: String) -> void:
+func _restore_dungeon_runtime(dungeon_id: String) -> bool:
 	if world == null:
-		return
+		return false
 	var dungeon_system := world.get_node_or_null("DungeonSystem")
 	if dungeon_system == null:
-		return
+		return false
+	var generator_value: Variant = dungeon_system.get("generator")
+	if generator_value == null:
+		return false
 	if dungeon_system.has_method("_ensure_dungeon_instance"):
-		dungeon_system.call("_ensure_dungeon_instance", dungeon_id)
+		var instance_value: Variant = dungeon_system.call("_ensure_dungeon_instance", dungeon_id)
+		if not instance_value is Node3D:
+			return false
 	dungeon_system.set("active_dungeon_id", dungeon_id)
+	return true
 
 func _active_dungeon_id() -> String:
 	if world == null:
