@@ -119,12 +119,12 @@ func _physics_process(delta: float) -> void:
 	elif Input.is_action_just_pressed("jump") and not inventory_open:
 		velocity.y = jump_velocity
 
-	var input_vec := Vector2.ZERO
+	var input_vec: Vector2 = Vector2.ZERO
 	if not inventory_open:
 		input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var wish_dir := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
-	var target_speed := sprint_speed if Input.is_action_pressed("sprint") else move_speed
-	var target_velocity := wish_dir * target_speed
+	var wish_dir: Vector3 = (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
+	var target_speed: float = sprint_speed if Input.is_action_pressed("sprint") else move_speed
+	var target_velocity: Vector3 = wish_dir * target_speed
 	velocity.x = move_toward(velocity.x, target_velocity.x, acceleration * delta)
 	velocity.z = move_toward(velocity.z, target_velocity.z, acceleration * delta)
 
@@ -136,25 +136,26 @@ func _physics_process(delta: float) -> void:
 
 func _get_nearest_interactable() -> Node:
 	var best: Node = null
-	var best_distance := interaction_distance
+	var best_distance: float = interaction_distance
 	for node in get_tree().get_nodes_in_group("interactable"):
 		if not is_instance_valid(node) or not node is Node3D:
 			continue
-		var distance := global_position.distance_to(node.global_position)
+		var node_3d := node as Node3D
+		var distance: float = global_position.distance_to(node_3d.global_position)
 		if distance < best_distance:
 			best_distance = distance
 			best = node
 	return best
 
 func _try_interact() -> void:
-	var target := _get_nearest_interactable()
+	var target: Node = _get_nearest_interactable()
 	if target != null and target.has_method("interact"):
 		target.interact(self)
 
 func _update_interaction_prompt() -> void:
 	if interaction_label == null:
 		return
-	var target := _get_nearest_interactable()
+	var target: Node = _get_nearest_interactable()
 	if target != null and target.has_method("get_interaction_text"):
 		interaction_label.text = target.get_interaction_text()
 	else:
@@ -166,28 +167,30 @@ func _try_attack() -> void:
 	attack_timer = attack_cooldown
 	_play_attack_animation()
 
-	var forward := -global_transform.basis.z
+	var forward: Vector3 = -global_transform.basis.z
 	forward.y = 0.0
 	forward = forward.normalized()
 	var best_enemy: Node3D = null
-	var best_distance := attack_range
+	var best_distance: float = attack_range
 	for node in get_tree().get_nodes_in_group("enemy"):
 		if not is_instance_valid(node) or not node is Node3D:
 			continue
-		var offset := node.global_position - global_position
+		var enemy := node as Node3D
+		var offset: Vector3 = enemy.global_position - global_position
 		offset.y = 0.0
-		var distance := offset.length()
+		var distance: float = offset.length()
 		if distance <= 0.01 or distance > best_distance:
 			continue
-		var direction := offset.normalized()
+		var direction: Vector3 = offset.normalized()
 		if forward.dot(direction) < 0.20:
 			continue
-		best_enemy = node
+		best_enemy = enemy
 		best_distance = distance
 
 	if best_enemy != null and best_enemy.has_method("receive_damage"):
-		best_enemy.receive_damage(_get_attack_damage(), self)
-		_set_status("Hit for %d" % _get_attack_damage())
+		var attack_damage: int = _get_attack_damage()
+		best_enemy.receive_damage(attack_damage, self)
+		_set_status("Hit for %d" % attack_damage)
 
 func _play_attack_animation() -> void:
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
@@ -202,8 +205,8 @@ func _get_attack_damage() -> int:
 	return max(8, ITEM_DB.get_damage(equipped_weapon))
 
 func receive_damage(amount: int) -> void:
-	var armor := ITEM_DB.get_armor(equipped_armor)
-	var final_damage := max(1, amount - armor)
+	var armor: int = ITEM_DB.get_armor(equipped_armor)
+	var final_damage: int = max(1, amount - armor)
 	health = max(0, health - final_damage)
 	_set_status("-%d HP" % final_damage)
 	_refresh_hud()
@@ -224,7 +227,7 @@ func receive_loot(item_name: String, amount: int) -> void:
 	_refresh_hud()
 
 func _auto_equip_upgrade(item_name: String) -> void:
-	var item_type := ITEM_DB.get_type(item_name)
+	var item_type: String = ITEM_DB.get_type(item_name)
 	if item_type == "weapon":
 		if ITEM_DB.get_damage(item_name) > ITEM_DB.get_damage(equipped_weapon):
 			equip_item(item_name)
@@ -235,7 +238,7 @@ func _auto_equip_upgrade(item_name: String) -> void:
 func equip_item(item_name: String) -> void:
 	if int(inventory.get(item_name, 0)) <= 0:
 		return
-	var item_type := ITEM_DB.get_type(item_name)
+	var item_type: String = ITEM_DB.get_type(item_name)
 	if item_type == "weapon":
 		equipped_weapon = item_name
 	elif item_type == "armor":
@@ -249,13 +252,13 @@ func equip_item(item_name: String) -> void:
 func _cycle_equipment() -> void:
 	var equippable: Array[String] = []
 	for key in inventory.keys():
-		var item_name := str(key)
+		var item_name: String = str(key)
 		if int(inventory[key]) > 0 and ITEM_DB.is_equippable(item_name):
 			equippable.append(item_name)
 	if equippable.is_empty():
 		return
 	equippable.sort()
-	var current_index := -1
+	var current_index: int = -1
 	for i in range(equippable.size()):
 		if equippable[i] == equipped_weapon or equippable[i] == equipped_armor:
 			current_index = i
@@ -272,17 +275,17 @@ func _refresh_hud() -> void:
 	if health_label == null:
 		return
 	health_label.text = "HP  %d / %d" % [health, max_health]
-	var armor_text := equipped_armor if not equipped_armor.is_empty() else "None"
+	var armor_text: String = equipped_armor if not equipped_armor.is_empty() else "None"
 	equipment_label.text = "Weapon: %s   Armor: %s" % [equipped_weapon, armor_text]
 
 	var lines: Array[String] = []
 	lines.append("INVENTORY")
 	lines.append("------------------------------")
-	var keys := inventory.keys()
+	var keys: Array = inventory.keys()
 	keys.sort()
 	for key in keys:
-		var item_name := str(key)
-		var marker := ""
+		var item_name: String = str(key)
+		var marker: String = ""
 		if item_name == equipped_weapon or item_name == equipped_armor:
 			marker = "  [EQUIPPED]"
 		lines.append("%s  x%d%s" % [item_name, int(inventory[key]), marker])
