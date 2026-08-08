@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.24
+## Current build: 0.29
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -26,28 +26,32 @@
 - [x] 0.22 Deterministic noise-based terrain data with biome-driven height character
 - [x] 0.23 Reusable terrain chunks with generation data separated from render and collision instances
 - [x] 0.24 Deterministic biome-map sampling, blended biome transitions and reserved authored landmark slots
+- [x] 0.25 Procedural forests, rocks and biome vegetation with MultiMesh presentation
+- [x] 0.26 Deterministic roads connecting region entries, landmarks and exits
+- [x] 0.27 Spaced minor ruins, camps, cave mouths, grave sites and secrets
+- [x] 0.28 Deterministic generated encounters, loot and stable persistent entity IDs
+- [x] 0.29 Procedural exploration runtime, RegionCatalog, generation budget/job queue, chunk pooling and reusable authored landmark modules
 
-## Next large package: 0.25–0.29 — Procedural Exploration
+## Procedural foundation completed before 0.30
 
-- [ ] Procedural forests and vegetation using MultiMesh where appropriate
-- [ ] Procedural roads connecting landmarks and region exits
-- [ ] Placement rules for minor ruins, camps, cave mouths and secrets
-- [ ] Deterministic encounter and loot placement
-- [ ] Point-of-interest spacing and sightline rules so exploration feels intentional
-- [ ] Move streamed region content toward reusable authored modules instead of manager-owned geometry
-- [ ] World regeneration from the same seed produces the same world content, not only the same terrain
+- [x] RegionCatalog is the single data source for streamed region definitions and authored slots
+- [x] Generation job queue interface with frame-time budget for future threaded/background data generation
+- [x] Chunk pool lifecycle wired into streamed region unload/reload
+- [x] Runtime generation counters and generation budget
+- [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
+- [x] Same world seed reproduces the same terrain and procedural exploration content
+- [x] Automated determinism and runtime-foundation regression tests
 
-## Foundation targets before 0.30
+## Next large package: 0.30–0.34 — Living World
 
-- [ ] RegionCatalog as the single data source for region definitions and authored slots
-- [ ] Generation job queue interface for future threaded/background chunk-data generation
-- [ ] Chunk pool lifecycle wired into region unload/reload
-- [ ] Runtime performance counters and generation budget
-- [ ] Stable generated entity IDs for vegetation, POIs, encounters and loot
+- [ ] 0.30 Data-driven persistent NPC foundation with streamed regional NPC placement
+- [ ] 0.31 Dialogue system with reusable conversation UI and NPC interaction
+- [ ] 0.32 Quest state, objectives, rewards and first exploration quest chain
+- [ ] 0.33 Merchant inventory, buying/selling and relic economy foundation
+- [ ] 0.34 Faction/reputation foundation and NPC state reactions
 
 ## Later milestones
 
-- [ ] 0.30–0.34 NPCs, merchants, dialogue, quests and factions
 - [ ] 0.35–0.39 Dungeons, modular dungeon generation and bosses
 - [ ] 0.40–0.44 Save/load and full world persistence
 - [ ] 0.45–0.50 Singleplayer + 2–4 player co-op networking
