@@ -1,8 +1,14 @@
 extends Area3D
 class_name DungeonPortal
 
-@export var dungeon_id: String = ""
-@export_enum("enter", "exit") var portal_mode: String = "enter"
+@export var dungeon_id: String = "":
+	set(value):
+		dungeon_id = value
+		_sync_stable_id()
+@export_enum("enter", "exit") var portal_mode: String = "enter":
+	set(value):
+		portal_mode = value
+		_sync_stable_id()
 @export var display_name: String = "Dungeon"
 
 func _ready() -> void:
