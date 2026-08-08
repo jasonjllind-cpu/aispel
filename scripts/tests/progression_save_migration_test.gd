@@ -52,14 +52,16 @@ func _validate_legacy_migration() -> bool:
 	var helper: RefCounted = PROGRESSION.new()
 	var level: int = 5
 	var lifetime_xp: int = int(helper.call("total_xp_required_for_level", level)) + 20
+	var legacy_spells: Array[String] = ["moon_bolt"]
+	var legacy_quests: Array[String] = ["quest:frontier_oath:frontier_arrival"]
 	var legacy: Dictionary = CODEC.build_legacy_v1(
 		"player:legacy",
 		level,
 		20,
 		lifetime_xp,
 		4,
-		["moon_bolt"],
-		["quest:frontier_oath:frontier_arrival"]
+		legacy_spells,
+		legacy_quests
 	)
 	var migrated: Dictionary = CODEC.migrate(legacy)
 	if migrated.is_empty() or int(migrated.get("version", 0)) != CODEC.CURRENT_VERSION:
@@ -83,15 +85,20 @@ func _validate_legacy_migration() -> bool:
 func _validate_corruption_rejection() -> bool:
 	if not CODEC.migrate({"version": 99, "player_id": "player:test"}).is_empty():
 		return _fail("Unsupported progression save version was accepted")
-	var bad_legacy: Dictionary = CODEC.build_legacy_v1("player:legacy", 3, 0, 100, 0, ["unknown_spell"], [])
+	var bad_spells: Array[String] = ["unknown_spell"]
+	var no_quests: Array[String] = []
+	var bad_legacy: Dictionary = CODEC.build_legacy_v1("player:legacy", 3, 0, 100, 0, bad_spells, no_quests)
 	if not CODEC.migrate(bad_legacy).is_empty():
 		return _fail("Legacy save with unknown spell was accepted")
-	var duplicate_quests: Dictionary = CODEC.build_legacy_v1("player:legacy", 3, 0, 100, 0, [], ["quest:test:a", "quest:test:a"])
+	var no_spells: Array[String] = []
+	var duplicate_quest_ids: Array[String] = ["quest:test:a", "quest:test:a"]
+	var duplicate_quests: Dictionary = CODEC.build_legacy_v1("player:legacy", 3, 0, 100, 0, no_spells, duplicate_quest_ids)
 	if not CODEC.migrate(duplicate_quests).is_empty():
 		return _fail("Legacy save with duplicate quest state was accepted")
 	var progression_state: RefCounted = PROGRESSION.new()
 	progression_state.call("configure", "player:test")
-	var current: Dictionary = CODEC.encode("player:test", progression_state.call("to_dict"), MAGIC.create_state("player:test"), BUILD.create_build("player:test"), [], 0)
+	var empty_quests: Array[String] = []
+	var current: Dictionary = CODEC.encode("player:test", progression_state.call("to_dict"), MAGIC.create_state("player:test"), BUILD.create_build("player:test"), empty_quests, 0)
 	current["player_id"] = "player:spoofed"
 	if CODEC.validate(current):
 		return _fail("Cross-player save payload was accepted")
@@ -154,7 +161,8 @@ func _validate_balance_coverage() -> bool:
 		previous_damage = float(stats.get("damage", 0.0))
 		previous_health = float(stats.get("max_health", 0.0))
 
-		var encoded: Dictionary = CODEC.encode(player_id, progression, magic, build, [], level)
+		var empty_quests: Array[String] = []
+		var encoded: Dictionary = CODEC.encode(player_id, progression, magic, build, empty_quests, level)
 		if encoded.is_empty() or CODEC.decode(encoded).is_empty():
 			return _fail("Balance fixture failed save round trip at level %d" % level)
 
