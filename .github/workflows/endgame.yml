@@ -152,3 +152,28 @@ jobs:
             echo "::error title=Postgame world profile script errors::$message"
             exit 1
           fi
+
+      - name: Verify authoritative co-op endgame replication
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 30s godot --headless --path . --script res://scripts/tests/network_endgame_replicator_test.gd 2>&1 | tee network-endgame-replicator.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 30 network-endgame-replicator.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Network endgame replicator Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "NETWORK_ENDGAME_REPLICATOR_OK" network-endgame-replicator.log; then
+            message=$(tail -n 30 network-endgame-replicator.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Network endgame replicator marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" network-endgame-replicator.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Network endgame replicator script errors::$message"
+            exit 1
+          fi
