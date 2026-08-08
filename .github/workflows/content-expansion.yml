@@ -66,3 +66,11 @@ jobs:
           godot --headless --path . --script res://scripts/tests/regional_dungeon_routing_test.gd 2>&1 | tee regional-dungeons.log
           grep -q "REGIONAL_DUNGEON_ROUTING_OK" regional-dungeons.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" regional-dungeons.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify deterministic world events
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_event_schedule_test.gd 2>&1 | tee world-events.log
+          grep -q "WORLD_EVENT_SCHEDULE_OK" world-events.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" world-events.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
