@@ -44,7 +44,7 @@ func _init() -> void:
 		_fail("Legacy endgame save did not migrate to current version")
 		return
 	var migrated_snapshot: Dictionary = CODEC.decode(migrated)
-	if migrated_snapshot != snapshot:
+	if not _legacy_shared_state_equal(snapshot, migrated_snapshot):
 		_fail("Legacy migration changed shared endgame state")
 		return
 
@@ -77,6 +77,23 @@ func _init() -> void:
 
 	print("ENDGAME_SAVE_CODEC_OK version=%d migrated=%d recovered=%s" % [CODEC.CURRENT_VERSION, int(migrated.get("version", 0)), str(recovered.get("recovery_reason", ""))])
 	quit(0)
+
+func _legacy_shared_state_equal(original: Dictionary, migrated: Dictionary) -> bool:
+	if not CODEC.validate_snapshot(migrated):
+		return false
+	if migrated.get("completed_campaign", []) != original.get("completed_campaign", []):
+		return false
+	if migrated.get("world_milestones", []) != original.get("world_milestones", []):
+		return false
+	if migrated.get("boss_state", {}) != BOSSES.normalize_state(original.get("boss_state", {})):
+		return false
+	if migrated.get("relic_plan", {}) != original.get("relic_plan", {}):
+		return false
+	if migrated.get("relic_state", {}) != original.get("relic_state", {}):
+		return false
+	if migrated.get("choice_state", {}) != original.get("choice_state", {}):
+		return false
+	return (migrated.get("postgame_profile", {}) as Dictionary).is_empty()
 
 func _fail(message: String) -> void:
 	printerr("ENDGAME_SAVE_CODEC_FAILED: %s" % message)
