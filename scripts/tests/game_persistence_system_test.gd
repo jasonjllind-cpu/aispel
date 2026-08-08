@@ -23,6 +23,9 @@ class MockPlayer:
 		pass
 
 func _init() -> void:
+	process_frame.connect(_run, CONNECT_ONE_SHOT)
+
+func _run() -> void:
 	var world := Node3D.new()
 	world.name = "PersistenceTestWorld"
 	get_root().add_child(world)
@@ -37,14 +40,14 @@ func _init() -> void:
 	state.call("set_entity_state", "boss:hollow_king", {"dead": true})
 
 	var player := MockPlayer.new()
+	world.add_child(player)
 	player.global_position = Vector3(24.5, 3.0, -81.25)
 	player.rotation = Vector3(0.0, 1.25, 0.0)
-	world.add_child(player)
 
+	# Keep injected systems outside the SceneTree so their production deferred
+	# installers cannot race this deterministic roundtrip contract test.
 	var dungeon_system := Node.new()
 	dungeon_system.set_script(DUNGEON_SYSTEM_SCRIPT)
-	dungeon_system.name = "DungeonSystem"
-	world.add_child(dungeon_system)
 	dungeon_system.set("world", world)
 	dungeon_system.set("world_state", state)
 	var dungeon_generator: RefCounted = DUNGEON_GENERATOR_SCRIPT.new()
@@ -54,10 +57,10 @@ func _init() -> void:
 
 	var persistence := Node.new()
 	persistence.set_script(PERSISTENCE_SCRIPT)
-	world.add_child(persistence)
 	persistence.set("world", world)
 	persistence.set("world_state", state)
 	persistence.set("player", player)
+	persistence.set("dungeon_system", dungeon_system)
 	var service: RefCounted = persistence.get("service")
 	service.call("delete_slot", TEST_SLOT)
 
@@ -67,8 +70,10 @@ func _init() -> void:
 	var expected_world: Dictionary = state.call("snapshot")
 
 	var save_result: Dictionary = persistence.call("save_now", TEST_SLOT)
-	if not save_result.get("ok", false):
+	if save_result.get("ok", false) != true:
 		_fail(persistence, TEST_SLOT, "Full session save failed: %s" % str(save_result.get("error", "unknown")))
+		dungeon_system.free()
+		persistence.free()
 		return
 
 	state.call("new_world", 999)
@@ -83,36 +88,59 @@ func _init() -> void:
 	dungeon_system.set("active_dungeon_id", "")
 
 	var load_result: Dictionary = persistence.call("load_now", TEST_SLOT)
-	if not load_result.get("ok", false):
+	if load_result.get("ok", false) != true:
 		_fail(persistence, TEST_SLOT, "Full session load failed: %s" % str(load_result.get("error", "unknown")))
+		dungeon_system.free()
+		persistence.free()
 		return
 	if state.call("snapshot") != expected_world:
 		_fail(persistence, TEST_SLOT, "WorldState did not roundtrip through full session save")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if player.global_position != expected_position or player.rotation != expected_rotation:
 		_fail(persistence, TEST_SLOT, "Player transform did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if player.health != 73 or player.max_health != 120:
 		_fail(persistence, TEST_SLOT, "Player health did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if player.inventory != expected_inventory:
 		_fail(persistence, TEST_SLOT, "Player inventory did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if player.equipped_weapon != "Rusty Sword" or player.equipped_armor != "Warden Mail":
 		_fail(persistence, TEST_SLOT, "Player equipment did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if player.spawn_position != Vector3(4, 2, -3):
 		_fail(persistence, TEST_SLOT, "Player checkpoint did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if str(dungeon_system.get("active_dungeon_id")) != "moon_catacombs":
 		_fail(persistence, TEST_SLOT, "Active dungeon ID did not restore")
+		dungeon_system.free()
+		persistence.free()
 		return
 	if world.get_node_or_null("Dungeon_moon_catacombs") == null:
 		_fail(persistence, TEST_SLOT, "Dungeon runtime was not rebuilt before restoring the player")
+		dungeon_system.free()
+		persistence.free()
 		return
 
 	service.call("delete_slot", TEST_SLOT)
 	print("GAME_PERSISTENCE_OK seed=%d inventory=%d dungeon=moon_catacombs" % [int(state.get("world_seed")), player.inventory.size()])
+	dungeon_system.free()
+	persistence.free()
+	world.queue_free()
+	state.queue_free()
+	await process_frame
 	quit(0)
 
 func _fail(persistence: Node, slot_id: String, message: String) -> void:
