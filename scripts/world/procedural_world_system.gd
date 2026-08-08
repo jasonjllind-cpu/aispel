@@ -2,8 +2,10 @@ extends Node
 
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
+const TERRAIN_CHUNK_POOL_SCRIPT := preload("res://scripts/world/terrain_chunk_pool.gd")
 
 const CHECK_INTERVAL: float = 0.35
+const CHUNK_POOL_CAPACITY: int = 64
 const REGION_CONFIG: Dictionary = {
 	"starting_valley": {
 		"biome": "green_highlands",
@@ -40,10 +42,12 @@ const REGION_CONFIG: Dictionary = {
 var world: Node3D
 var world_state: Node
 var generator: RefCounted
+var chunk_pool: RefCounted
 var elapsed: float = 0.0
 var chunk_data_cache: Dictionary = {}
 var generated_region_count: int = 0
 var status_label: Label
+var unload_hooks: Dictionary = {}
 
 func _ready() -> void:
 	set_process(false)
@@ -57,6 +61,7 @@ func _install() -> void:
 		return
 	world_state = get_node_or_null("/root/WorldState")
 	generator = WORLD_GENERATOR_SCRIPT.new()
+	chunk_pool = TERRAIN_CHUNK_POOL_SCRIPT.new(TERRAIN_CHUNK_SCRIPT, CHUNK_POOL_CAPACITY)
 	var seed_value: int = 8242601
 	if world_state != null:
 		seed_value = int(world_state.get("world_seed"))
@@ -65,6 +70,10 @@ func _install() -> void:
 	_build_starting_valley_terrain()
 	_scan_runtime_regions()
 	set_process(true)
+
+func _exit_tree() -> void:
+	if chunk_pool != null and chunk_pool.has_method("clear"):
+		chunk_pool.call("clear")
 
 func _process(delta: float) -> void:
 	elapsed += delta
@@ -97,12 +106,35 @@ func _scan_runtime_regions() -> void:
 			var region_id: String = region_node.name.trim_prefix("Region_")
 			if not REGION_CONFIG.has(region_id) or region_id == "starting_valley":
 				continue
+			_install_unload_hook(region_node, region_id)
 			if not region_node.has_node("GeneratedTerrain"):
 				_build_region_terrain(region_node, region_id)
 			if region_node.has_node("GeneratedTerrain"):
 				active_generated += 1
 	generated_region_count = active_generated
 	_refresh_status()
+
+func _install_unload_hook(region_node: Node3D, region_id: String) -> void:
+	var instance_id: int = region_node.get_instance_id()
+	if unload_hooks.has(instance_id):
+		return
+	unload_hooks[instance_id] = region_id
+	region_node.tree_exiting.connect(_on_region_tree_exiting.bind(instance_id, region_node), CONNECT_ONE_SHOT)
+
+func _on_region_tree_exiting(instance_id: int, region_node: Node3D) -> void:
+	unload_hooks.erase(instance_id)
+	if region_node == null or not is_instance_valid(region_node):
+		return
+	var terrain_root := region_node.get_node_or_null("GeneratedTerrain")
+	if terrain_root != null:
+		_release_terrain_root(terrain_root)
+
+func _release_terrain_root(terrain_root: Node) -> int:
+	if chunk_pool == null or terrain_root == null:
+		return 0
+	if chunk_pool.has_method("release_children"):
+		return int(chunk_pool.call("release_children", terrain_root))
+	return 0
 
 func _build_region_terrain(region_node: Node3D, region_id: String) -> void:
 	var config: Dictionary = REGION_CONFIG.get(region_id, {})
@@ -135,9 +167,13 @@ func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_c
 				chunk_data = generator.call("generate_chunk_data", region_id, biome_id, region_center, coord, reserved_slots)
 				chunk_data_cache[cache_key] = chunk_data.duplicate(true)
 
-			var chunk := Node3D.new()
-			chunk.set_script(TERRAIN_CHUNK_SCRIPT)
-			parent.add_child(chunk)
+			var chunk: Node3D
+			if chunk_pool != null and chunk_pool.has_method("acquire"):
+				chunk = chunk_pool.call("acquire", parent) as Node3D
+			else:
+				chunk = Node3D.new()
+				chunk.set_script(TERRAIN_CHUNK_SCRIPT)
+				parent.add_child(chunk)
 			chunk.call("build_from_data", chunk_data)
 
 func _world_seed() -> int:
@@ -160,6 +196,11 @@ func get_generation_seed(region_id: String, layer_id: String, chunk_coord: Vecto
 		return 0
 	return int(generator.call("generation_seed", region_id, layer_id, chunk_coord))
 
+func get_pool_stats() -> Dictionary:
+	if chunk_pool == null or not chunk_pool.has_method("stats"):
+		return {"available": 0, "capacity": CHUNK_POOL_CAPACITY, "created": 0, "reused": 0, "released": 0, "discarded": 0}
+	return chunk_pool.call("stats") as Dictionary
+
 func _build_status_ui(seed_value: int) -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 127
@@ -175,4 +216,5 @@ func _build_status_ui(seed_value: int) -> void:
 func _refresh_status() -> void:
 	if status_label == null:
 		return
-	status_label.text = "Seed %d  •  %d generated terrain regions  •  G seed menu" % [_world_seed(), generated_region_count]
+	var pool_available: int = int(get_pool_stats().get("available", 0))
+	status_label.text = "Seed %d  •  %d generated terrain regions  •  pool %d  •  G seed menu" % [_world_seed(), generated_region_count, pool_available]
