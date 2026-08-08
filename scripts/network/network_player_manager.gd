@@ -7,6 +7,7 @@ signal player_state_rejected(peer_id: int, reason: String)
 const STATE_PROTOCOL: int = 1
 const SEND_INTERVAL: float = 0.10
 const MAX_WORLD_COORDINATE: float = 50000.0
+const MAX_SNAPSHOT_STEP_DISTANCE: float = 6.0
 
 var network_session: Node
 var local_player: Node3D
@@ -111,6 +112,13 @@ func validate_player_state(peer_id: int, state: Dictionary) -> Dictionary:
 	var position: Vector3 = position_value as Vector3
 	if abs(position.x) > MAX_WORLD_COORDINATE or abs(position.y) > MAX_WORLD_COORDINATE or abs(position.z) > MAX_WORLD_COORDINATE:
 		return {"ok": false, "error": "position_out_of_bounds"}
+	var previous_state_value: Variant = player_states.get(peer_id, {})
+	if previous_state_value is Dictionary and not (previous_state_value as Dictionary).is_empty():
+		var previous_position_value: Variant = (previous_state_value as Dictionary).get("position", null)
+		if previous_position_value is Vector3:
+			var step_distance: float = (previous_position_value as Vector3).distance_to(position)
+			if step_distance > MAX_SNAPSHOT_STEP_DISTANCE:
+				return {"ok": false, "error": "movement_step_too_large"}
 	return {"ok": true}
 
 func state_for_peer(peer_id: int) -> Dictionary:
