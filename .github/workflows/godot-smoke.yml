@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: [main]
 
-concurrency:
-  group: godot-smoke-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   godot-check:
     runs-on: ubuntu-latest
@@ -37,6 +33,17 @@ jobs:
           grep -q "GENERATION_DETERMINISM_OK" godot-generation.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-generation.log | grep -v 'ERROR: Parameter "m" is null\.'; then
             echo "Generation test errors detected"
+            exit 1
+          fi
+
+      - name: Verify scalable macro world graph
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_graph_generator_test.gd 2>&1 | tee godot-world-graph.log
+          grep -q "WORLD_GRAPH_OK" godot-world-graph.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-world-graph.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Macro world graph errors detected"
             exit 1
           fi
 
