@@ -110,3 +110,14 @@ jobs:
             echo "World distribution planner errors detected"
             exit 1
           fi
+
+      - name: Verify multi-scale regeneration stress
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_graph_stress_test.gd 2>&1 | tee graph-stress.log
+          grep -q "WORLD_GRAPH_STRESS_OK" graph-stress.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" graph-stress.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World graph stress errors detected"
+            exit 1
+          fi
