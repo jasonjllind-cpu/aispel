@@ -4,8 +4,9 @@ class_name WorldGraphGenerator
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const TEMPLATE_CATALOG := preload("res://scripts/world/region_template_catalog.gd")
 const CONTENT_PROFILE_CATALOG := preload("res://scripts/world/region_content_profile_catalog.gd")
+const ROUTE_PLANNER := preload("res://scripts/world/world_route_planner.gd")
 
-const GRAPH_FORMAT_VERSION: int = 3
+const GRAPH_FORMAT_VERSION: int = 4
 const REGION_SPACING: float = 170.0
 const DEFAULT_NODE_COUNT: int = 18
 const START_REGION_ID: String = "region:starting_valley"
@@ -46,6 +47,9 @@ func generate_graph(target_node_count: int = DEFAULT_NODE_COUNT) -> Dictionary:
 	var nodes: Array[Dictionary] = _sorted_nodes(nodes_by_cell)
 	var edges: Array[Dictionary] = _build_edges(nodes_by_cell)
 	var topology: Dictionary = _annotate_topology(nodes, edges, START_REGION_ID)
+	var topology_nodes: Array = topology.get("nodes", nodes) as Array
+	var topology_edges: Array = topology.get("edges", edges) as Array
+	var route_plan: Dictionary = ROUTE_PLANNER.build(world_seed, topology_nodes, topology_edges)
 	return {
 		"format_version": GRAPH_FORMAT_VERSION,
 		"world_seed": world_seed,
@@ -54,8 +58,12 @@ func generate_graph(target_node_count: int = DEFAULT_NODE_COUNT) -> Dictionary:
 		"start_region_id": START_REGION_ID,
 		"max_graph_depth": int(topology.get("max_graph_depth", 0)),
 		"progression_band_counts": topology.get("progression_band_counts", {}).duplicate(true),
-		"nodes": topology.get("nodes", nodes),
-		"edges": topology.get("edges", edges),
+		"route_format_version": int(route_plan.get("format_version", 0)),
+		"route_class_counts": route_plan.get("route_class_counts", {}).duplicate(true),
+		"gateway_count": int(route_plan.get("gateway_count", 0)),
+		"shortcut_candidates": (route_plan.get("shortcut_candidates", []) as Array).duplicate(true),
+		"nodes": topology_nodes,
+		"edges": route_plan.get("edges", topology_edges),
 		"anchor_count": ANCHOR_CELLS.size(),
 		"generated_count": maxi(0, nodes.size() - ANCHOR_CELLS.size())
 	}
