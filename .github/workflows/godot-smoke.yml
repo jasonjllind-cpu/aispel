@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: godot-smoke-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   godot-check:
     runs-on: ubuntu-latest
