@@ -1,4 +1,4 @@
-[gd_scene load_steps=8 format=3]
+[gd_scene load_steps=10 format=3]
 
 [ext_resource type="Script" path="res://scripts/world_runtime.gd" id="1_world"]
 [ext_resource type="Script" path="res://scripts/exploration_runtime.gd" id="2_exploration"]
@@ -7,6 +7,8 @@
 [ext_resource type="Script" path="res://scripts/world/world_seed_menu.gd" id="5_seed_menu"]
 [ext_resource type="Script" path="res://scripts/world/procedural_exploration_runtime.gd" id="6_proc_exploration"]
 [ext_resource type="Script" path="res://scripts/npc/npc_system.gd" id="7_npc_system"]
+[ext_resource type="Script" path="res://scripts/npc/faction_system.gd" id="8_faction_system"]
+[ext_resource type="Script" path="res://scripts/npc/merchant_system.gd" id="9_merchant_system"]
 
 [node name="Main" type="Node3D"]
 script = ExtResource("1_world")
@@ -23,8 +25,14 @@ script = ExtResource("4_generator")
 [node name="ProceduralExplorationSystem" type="Node" parent="."]
 script = ExtResource("6_proc_exploration")
 
+[node name="FactionSystem" type="Node" parent="."]
+script = ExtResource("8_faction_system")
+
 [node name="NPCSystem" type="Node" parent="."]
 script = ExtResource("7_npc_system")
+
+[node name="MerchantSystem" type="Node" parent="."]
+script = ExtResource("9_merchant_system")
 
 [node name="WorldSeedMenu" type="Node" parent="."]
 script = ExtResource("5_seed_menu")
