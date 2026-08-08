@@ -72,3 +72,13 @@ jobs:
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" quest-chain.log | grep -v 'ERROR: Parameter "m" is null\.'; then
             exit 1
           fi
+
+      - name: Verify magic school progression
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/magic_school_progression_test.gd 2>&1 | tee magic-school.log
+          grep -q "MAGIC_SCHOOL_PROGRESSION_OK" magic-school.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" magic-school.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            exit 1
+          fi
