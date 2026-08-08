@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.68
+## Current build: 0.69
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -75,7 +75,20 @@
 - [x] 0.66 World-event archetypes with deterministic regional scheduling/state IDs
 - [x] 0.67 Lore discovery catalog: shrines, inscriptions, relic records and region history fragments
 - [x] 0.68 Content-density balancing across biomes/progression bands with large-world coverage gates
-- [ ] 0.69 Major World & Content Expansion integration/polish pass
+- [x] 0.69 Major World & Content Expansion integration/polish pass with unified deterministic RegionContentBundle
+
+## Progression, Magic, Equipment & Quest Chains — 0.70–0.79
+
+- [ ] 0.70 Persistent player progression state, XP/level curves and progression rewards
+- [ ] 0.71 Data-driven spell catalog, schools, resource costs and casting contracts
+- [ ] 0.72 Equipment progression, rarity tiers, stat scaling and deterministic item rolls
+- [ ] 0.73 Quest-chain graph with prerequisites, branching objectives and stable progression IDs
+- [ ] 0.74 Magic-school progression, unlocks and world/quest discovery integration
+- [ ] 0.75 Regional progression gates and rewards connected to encounters, dungeons and exploration content
+- [ ] 0.76 Character build/loadout model integrating equipment, magic and derived combat stats
+- [ ] 0.77 Authoritative co-op replication for progression, equipment, spells and quest-chain state
+- [ ] 0.78 Save migration, balance coverage and end-to-end progression regression gates
+- [ ] 0.79 Progression/Magic/Equipment/Quest Chains integration and polish pass
 
 ## Verified architecture foundations
 
@@ -85,12 +98,11 @@
 - [x] Runtime generation counters and generation budget
 - [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
 - [x] Same world seed reproduces the same terrain and procedural exploration content
-- [x] Automated generation, world graph, Living World, dungeon, save/persistence and networking regression tests
+- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking and content-expansion regression tests
 - [x] Main-scene headless Godot smoke test
 
 ## Later milestones
 
-- [ ] 0.70–0.79 Progression, magic, equipment and quest chains
 - [ ] 0.80–0.89 Full game progression and end-game structure
 - [ ] 0.90–0.99 Beta, optimization and polish
 - [ ] 1.00 Release target
