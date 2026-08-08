@@ -2,6 +2,8 @@ extends SceneTree
 
 const WORLD_STATE_SCRIPT := preload("res://scripts/core/world_state.gd")
 const PERSISTENCE_SCRIPT := preload("res://scripts/core/game_persistence_system.gd")
+const DUNGEON_SYSTEM_SCRIPT := preload("res://scripts/dungeon/dungeon_system.gd")
+const DUNGEON_GENERATOR_SCRIPT := preload("res://scripts/dungeon/dungeon_generator.gd")
 const TEST_SLOT := "ci_full_session"
 
 class MockPlayer:
@@ -39,6 +41,17 @@ func _init() -> void:
 	player.rotation = Vector3(0.0, 1.25, 0.0)
 	world.add_child(player)
 
+	var dungeon_system := Node.new()
+	dungeon_system.set_script(DUNGEON_SYSTEM_SCRIPT)
+	dungeon_system.name = "DungeonSystem"
+	world.add_child(dungeon_system)
+	dungeon_system.set("world", world)
+	dungeon_system.set("world_state", state)
+	var dungeon_generator: RefCounted = DUNGEON_GENERATOR_SCRIPT.new()
+	dungeon_generator.call("configure", 515151)
+	dungeon_system.set("generator", dungeon_generator)
+	dungeon_system.set("active_dungeon_id", "moon_catacombs")
+
 	var persistence := Node.new()
 	persistence.set_script(PERSISTENCE_SCRIPT)
 	world.add_child(persistence)
@@ -67,6 +80,7 @@ func _init() -> void:
 	player.equipped_weapon = ""
 	player.equipped_armor = ""
 	player.spawn_position = Vector3.ZERO
+	dungeon_system.set("active_dungeon_id", "")
 
 	var load_result: Dictionary = persistence.call("load_now", TEST_SLOT)
 	if not load_result.get("ok", false):
@@ -90,9 +104,15 @@ func _init() -> void:
 	if player.spawn_position != Vector3(4, 2, -3):
 		_fail(persistence, TEST_SLOT, "Player checkpoint did not restore")
 		return
+	if str(dungeon_system.get("active_dungeon_id")) != "moon_catacombs":
+		_fail(persistence, TEST_SLOT, "Active dungeon ID did not restore")
+		return
+	if world.get_node_or_null("Dungeon_moon_catacombs") == null:
+		_fail(persistence, TEST_SLOT, "Dungeon runtime was not rebuilt before restoring the player")
+		return
 
 	service.call("delete_slot", TEST_SLOT)
-	print("GAME_PERSISTENCE_OK seed=%d inventory=%d" % [int(state.get("world_seed")), player.inventory.size()])
+	print("GAME_PERSISTENCE_OK seed=%d inventory=%d dungeon=moon_catacombs" % [int(state.get("world_seed")), player.inventory.size()])
 	quit(0)
 
 func _fail(persistence: Node, slot_id: String, message: String) -> void:
