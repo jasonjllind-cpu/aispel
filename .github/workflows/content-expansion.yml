@@ -82,3 +82,11 @@ jobs:
           godot --headless --path . --script res://scripts/tests/lore_discovery_plan_test.gd 2>&1 | tee lore-discovery.log
           grep -q "LORE_DISCOVERY_PLAN_OK" lore-discovery.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" lore-discovery.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify large-world content density
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/content_density_balance_test.gd 2>&1 | tee content-density.log
+          grep -q "CONTENT_DENSITY_BALANCE_OK" content-density.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" content-density.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
