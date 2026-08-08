@@ -20,7 +20,11 @@ jobs:
         run: |
           set -o pipefail
           godot --headless --path . --editor --quit 2>&1 | tee godot-editor.log
-          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-editor.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+          ERRORS="$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-editor.log | grep -v 'ERROR: Parameter "m" is null\.' || true)"
+          if [ -n "$ERRORS" ]; then
+            while IFS= read -r line; do
+              echo "::error title=Godot import/script check::$line"
+            done <<< "$ERRORS"
             echo "Godot editor/script errors detected"
             exit 1
           fi
