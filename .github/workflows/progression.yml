@@ -39,25 +39,9 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          set +e
-          godot --headless --path . --script res://scripts/tests/equipment_progression_test.gd 2>&1 | tee equipment-progression.log
-          status=${PIPESTATUS[0]}
-          set -e
-          if [ "$status" -ne 0 ]; then
-            message=$(tail -n 25 equipment-progression.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Equipment progression Godot failure::$message"
-            exit "$status"
-          fi
-          if ! grep -q "EQUIPMENT_PROGRESSION_OK" equipment-progression.log; then
-            echo "::error title=Equipment progression marker missing::Godot exited successfully but EQUIPMENT_PROGRESSION_OK was not emitted"
-            exit 1
-          fi
-          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" equipment-progression.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
-          if [ -n "$errors" ]; then
-            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
-            echo "::error title=Equipment progression script errors::$message"
-            exit 1
-          fi
+          timeout 30s godot --headless --path . --script res://scripts/tests/equipment_progression_test.gd 2>&1 | tee equipment-progression.log
+          grep -q "EQUIPMENT_PROGRESSION_OK" equipment-progression.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" equipment-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
 
       - name: Verify quest chain graph
         shell: bash
@@ -98,3 +82,19 @@ jobs:
           timeout 30s godot --headless --path . --script res://scripts/tests/network_progression_replicator_test.gd 2>&1 | tee network-progression.log
           grep -q "NETWORK_PROGRESSION_REPLICATOR_OK" network-progression.log
           if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" network-progression.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify progression save migration and balance coverage
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 30s godot --headless --path . --script res://scripts/tests/progression_save_migration_test.gd 2>&1 | tee progression-save.log
+          grep -q "PROGRESSION_SAVE_MIGRATION_OK" progression-save.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-save.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
+
+      - name: Verify progression integration and polish
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 30s godot --headless --path . --script res://scripts/tests/progression_integration_test.gd 2>&1 | tee progression-integration.log
+          grep -q "PROGRESSION_INTEGRATION_OK" progression-integration.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" progression-integration.log | grep -v 'ERROR: Parameter "m" is null\.'; then exit 1; fi
