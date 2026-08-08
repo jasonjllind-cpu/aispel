@@ -21,26 +21,31 @@ func build_from_data(chunk_data: Dictionary) -> void:
 	if vertices.is_empty() or indices.is_empty():
 		return
 
-	var arrays: Array = []
-	arrays.resize(Mesh.ARRAY_MAX)
-	arrays[Mesh.ARRAY_VERTEX] = vertices
-	arrays[Mesh.ARRAY_NORMAL] = normals
-	arrays[Mesh.ARRAY_COLOR] = colors
-	arrays[Mesh.ARRAY_INDEX] = indices
+	# Rendering is presentation-only. A future dedicated server needs terrain
+	# collision/state, but must not ask the dummy/headless renderer to build meshes.
+	if DisplayServer.get_name() != "headless":
+		var arrays: Array = []
+		arrays.resize(Mesh.ARRAY_MAX)
+		arrays[Mesh.ARRAY_VERTEX] = vertices
+		arrays[Mesh.ARRAY_NORMAL] = normals
+		arrays[Mesh.ARRAY_COLOR] = colors
+		arrays[Mesh.ARRAY_INDEX] = indices
 
-	var terrain_mesh := ArrayMesh.new()
-	terrain_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color.WHITE
-	material.roughness = 1.0
-	material.vertex_color_use_as_albedo = true
-	terrain_mesh.surface_set_material(0, material)
+		var terrain_mesh := ArrayMesh.new()
+		terrain_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+		var material := StandardMaterial3D.new()
+		material.albedo_color = Color.WHITE
+		material.roughness = 1.0
+		material.vertex_color_use_as_albedo = true
+		terrain_mesh.surface_set_material(0, material)
 
-	mesh_instance = MeshInstance3D.new()
-	mesh_instance.name = "TerrainMesh"
-	mesh_instance.mesh = terrain_mesh
-	add_child(mesh_instance)
+		mesh_instance = MeshInstance3D.new()
+		mesh_instance.name = "TerrainMesh"
+		mesh_instance.mesh = terrain_mesh
+		add_child(mesh_instance)
 
+	# Collision remains available in headless mode so server-side movement and
+	# authoritative gameplay can use the exact same generated terrain data.
 	if not collision_faces.is_empty():
 		static_body = StaticBody3D.new()
 		static_body.name = "TerrainCollision"
