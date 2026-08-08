@@ -159,8 +159,8 @@ static func _index_nodes(nodes: Array) -> Dictionary:
 				result[stable_id] = node
 	return result
 
-static func _stable_score(world_seed: int, stable_id: String, namespace: String) -> float:
-	var raw: int = int(("%d:%s:%s:v%d" % [world_seed, namespace, stable_id, FORMAT_VERSION]).hash() & 0x7fffffff)
+static func _stable_score(world_seed: int, stable_id: String, score_namespace: String) -> float:
+	var raw: int = int(("%d:%s:%s:v%d" % [world_seed, score_namespace, stable_id, FORMAT_VERSION]).hash() & 0x7fffffff)
 	return float(raw) / float(0x7fffffff)
 
 static func _score_less(a: Dictionary, b: Dictionary) -> bool:
