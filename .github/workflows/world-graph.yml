@@ -73,3 +73,14 @@ jobs:
             echo "Subregion graph errors detected"
             exit 1
           fi
+
+      - name: Verify topology-aware streaming priorities
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/world_streaming_planner_test.gd 2>&1 | tee streaming-plan.log
+          grep -q "WORLD_STREAMING_PLANNER_OK" streaming-plan.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" streaming-plan.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "World streaming planner errors detected"
+            exit 1
+          fi
