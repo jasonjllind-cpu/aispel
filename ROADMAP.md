@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.80
+## Current build: 0.81
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -93,7 +93,7 @@
 ## Full Game Progression & End-game — 0.80–0.89
 
 - [x] 0.80 Data-driven campaign milestone graph, chapter gates and stable ending prerequisites
-- [ ] 0.81 End-game region access model connected to campaign, world graph and exploration milestones
+- [x] 0.81 End-game region access model connected to campaign, world graph and exploration milestones
 - [ ] 0.82 Boss progression tiers, guardian milestones and authoritative victory-state contracts
 - [ ] 0.83 Relic/key objective model for deterministic end-game access and recovery after reload
 - [ ] 0.84 Faction/choice consequence layer driving mutually compatible ending routes
