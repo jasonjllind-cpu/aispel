@@ -2,6 +2,7 @@ extends Node
 class_name WorldGraphRuntime
 
 const GRAPH_GENERATOR_SCRIPT := preload("res://scripts/world/world_graph_generator.gd")
+const SUBREGION_GRAPH_GENERATOR := preload("res://scripts/world/subregion_graph_generator.gd")
 
 const UPDATE_INTERVAL: float = 0.30
 const LOAD_RADIUS: float = 245.0
@@ -15,8 +16,10 @@ var generator: RefCounted
 var graph: Dictionary = {}
 var nodes_by_id: Dictionary = {}
 var loaded_regions: Dictionary = {}
+var subregion_cache: Dictionary = {}
 var regions_root: Node3D
 var elapsed: float = 0.0
+var active_world_seed: int = 8242601
 
 func _ready() -> void:
 	add_to_group("world_graph_runtime")
@@ -30,8 +33,9 @@ func _install() -> void:
 	world_state = get_node_or_null("/root/WorldState")
 	if world == null:
 		return
+	active_world_seed = _world_seed()
 	generator = GRAPH_GENERATOR_SCRIPT.new()
-	generator.call("configure", _world_seed())
+	generator.call("configure", active_world_seed)
 	graph = generator.call("generate_graph", DEFAULT_GRAPH_NODES)
 	_index_graph()
 	regions_root = world.get_node_or_null("RuntimeGraphRegions") as Node3D
@@ -55,6 +59,8 @@ func _process(delta: float) -> void:
 
 func rebuild_for_seed(seed_value: int, target_nodes: int = DEFAULT_GRAPH_NODES) -> void:
 	_release_all()
+	subregion_cache.clear()
+	active_world_seed = seed_value
 	if generator == null:
 		generator = GRAPH_GENERATOR_SCRIPT.new()
 	generator.call("configure", seed_value)
@@ -65,6 +71,26 @@ func rebuild_for_seed(seed_value: int, target_nodes: int = DEFAULT_GRAPH_NODES) 
 func graph_node(stable_id: String) -> Dictionary:
 	var value: Variant = nodes_by_id.get(stable_id, {})
 	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+
+func subregion_graph(stable_id: String) -> Dictionary:
+	var cached: Variant = subregion_cache.get(stable_id)
+	if cached is Dictionary:
+		return (cached as Dictionary).duplicate(true)
+	var parent_region: Dictionary = graph_node(stable_id)
+	if parent_region.is_empty():
+		return {}
+	var generated: Dictionary = SUBREGION_GRAPH_GENERATOR.generate(active_world_seed, parent_region)
+	if generated.is_empty():
+		return {}
+	subregion_cache[stable_id] = generated.duplicate(true)
+	return generated.duplicate(true)
+
+func cached_subregion_ids() -> Array[String]:
+	var result: Array[String] = []
+	for key in subregion_cache.keys():
+		result.append(str(key))
+	result.sort()
+	return result
 
 func nearest_node(world_position: Vector3, include_anchors: bool = true) -> Dictionary:
 	var nearest: Dictionary = {}
@@ -151,6 +177,7 @@ func _load_graph_region(node: Dictionary) -> Node3D:
 	region.set_meta("template_id", str(node.get("template_id", "")))
 	region.set_meta("landmark_module", str(node.get("landmark_module", "")))
 	region.set_meta("graph_cell", node.get("graph_cell", Vector2i.ZERO))
+	region.set_meta("subregion_graph_id", "subgraph:%s" % stable_id)
 	region.add_to_group("generated_graph_region")
 	regions_root.add_child(region)
 	loaded_regions[stable_id] = region
