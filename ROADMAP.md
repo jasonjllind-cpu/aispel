@@ -1,6 +1,6 @@
 # Retro Fantasy Exploration — Roadmap
 
-## Current build: 0.69
+## Current build: 0.70
 
 - [x] 0.01 Third-person movement and camera
 - [x] 0.02 Retro rendering baseline
@@ -79,7 +79,7 @@
 
 ## Progression, Magic, Equipment & Quest Chains — 0.70–0.79
 
-- [ ] 0.70 Persistent player progression state, XP/level curves and progression rewards
+- [x] 0.70 Persistent player progression state, XP/level curves and progression rewards
 - [ ] 0.71 Data-driven spell catalog, schools, resource costs and casting contracts
 - [ ] 0.72 Equipment progression, rarity tiers, stat scaling and deterministic item rolls
 - [ ] 0.73 Quest-chain graph with prerequisites, branching objectives and stable progression IDs
@@ -98,7 +98,7 @@
 - [x] Runtime generation counters and generation budget
 - [x] Stable generated entity IDs for vegetation, POIs, encounters and loot
 - [x] Same world seed reproduces the same terrain and procedural exploration content
-- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking and content-expansion regression tests
+- [x] Automated generation, world graph, Living World, dungeon, save/persistence, networking, content-expansion and progression regression tests
 - [x] Main-scene headless Godot smoke test
 
 ## Later milestones
