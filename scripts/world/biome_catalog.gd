@@ -13,6 +13,9 @@ const BIOMES: Dictionary = {
 		"tree_density": 0.42,
 		"rock_density": 0.22,
 		"elevation": 1.2,
+		"terrain_scale": 1.0,
+		"terrain_detail": 0.42,
+		"terrain_ridge": 0.18,
 		"encounter_profile": "warden_patrol"
 	},
 	"blackwood": {
@@ -26,6 +29,9 @@ const BIOMES: Dictionary = {
 		"tree_density": 0.78,
 		"rock_density": 0.16,
 		"elevation": 0.4,
+		"terrain_scale": 0.72,
+		"terrain_detail": 0.58,
+		"terrain_ridge": 0.10,
 		"encounter_profile": "blackwood_ambush"
 	},
 	"veilmoor": {
@@ -39,6 +45,9 @@ const BIOMES: Dictionary = {
 		"tree_density": 0.30,
 		"rock_density": 0.34,
 		"elevation": 0.7,
+		"terrain_scale": 0.82,
+		"terrain_detail": 0.34,
+		"terrain_ridge": 0.08,
 		"encounter_profile": "restless_dead"
 	},
 	"windscar_highlands": {
@@ -52,6 +61,9 @@ const BIOMES: Dictionary = {
 		"tree_density": 0.20,
 		"rock_density": 0.55,
 		"elevation": 2.4,
+		"terrain_scale": 1.35,
+		"terrain_detail": 0.38,
+		"terrain_ridge": 0.36,
 		"encounter_profile": "highland_guardians"
 	}
 }
@@ -62,3 +74,9 @@ static func get_biome(biome_id: String) -> Dictionary:
 
 static func has_biome(biome_id: String) -> bool:
 	return BIOMES.has(biome_id)
+
+static func get_ids() -> Array[String]:
+	var result: Array[String] = []
+	for key in BIOMES.keys():
+		result.append(str(key))
+	return result
