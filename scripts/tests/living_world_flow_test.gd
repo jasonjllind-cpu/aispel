@@ -43,6 +43,7 @@ func _init() -> void:
 	var merchant_system := Node.new()
 	merchant_system.set_script(MERCHANT_SYSTEM_SCRIPT)
 	get_root().add_child(merchant_system)
+	merchant_system.set("faction_system", faction_system)
 	if not _run_merchant_flow(merchant_system, faction_system, player):
 		quit(1)
 		return
@@ -63,9 +64,9 @@ func _run_quest_flow(npc_system: Node, world_state: Node, player: MockPlayer) ->
 	if str(state.get("status", "")) != "active":
 		return _fail("Starter quest was not persisted as active")
 	world_state.call("mark_region_discovered", "blackwood")
-	if not bool(world_state.call("is_region_discovered", "blackwood")):
+	if not world_state.call("is_region_discovered", "blackwood"):
 		return _fail("Blackwood discovery did not register")
-	if not bool(npc_system.call("_quest_objective_complete", quest)):
+	if not npc_system.call("_quest_objective_complete", quest):
 		return _fail("Blackwood discovery did not complete the quest objective")
 	var complete_lines: Array[String] = npc_system.call("_conversation_lines", elowen, player)
 	if complete_lines.is_empty():
@@ -88,7 +89,7 @@ func _run_faction_reward_flow(faction_system: Node, world_state: Node) -> bool:
 	faction_system.call("_apply_completed_quest_rewards")
 	if int(faction_system.call("get_reputation", "moon_wardens")) != 20:
 		return _fail("Faction reward was applied more than once")
-	if not bool(world_state.call("get_flag", "faction_reward:whispers_in_blackwood:moon_wardens", false)):
+	if not world_state.call("get_flag", "faction_reward:whispers_in_blackwood:moon_wardens", false):
 		return _fail("Faction reward idempotency flag is missing")
 	return true
 
