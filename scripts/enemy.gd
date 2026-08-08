@@ -39,9 +39,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y -= gravity * delta
 
 	if target == null or not is_instance_valid(target):
-		var players: Array[Node] = get_tree().get_nodes_in_group("player")
-		if players.size() > 0 and players[0] is Node3D:
-			target = players[0] as Node3D
+		target = _acquire_nearest_target()
 
 	if target != null and stagger_timer <= 0.0:
 		var offset: Vector3 = target.global_position - global_position
@@ -57,6 +55,7 @@ func _physics_process(delta: float) -> void:
 			velocity.z = move_toward(velocity.z, 0.0, 10.0 * delta)
 			_try_attack()
 		else:
+			target = _acquire_nearest_target()
 			velocity.x = move_toward(velocity.x, 0.0, 8.0 * delta)
 			velocity.z = move_toward(velocity.z, 0.0, 8.0 * delta)
 	else:
@@ -66,6 +65,21 @@ func _physics_process(delta: float) -> void:
 	move_and_slide()
 	var horizontal_speed: float = Vector2(velocity.x, velocity.z).length()
 	_animate_visual(delta, horizontal_speed > 0.20)
+
+func _acquire_nearest_target() -> Node3D:
+	var candidates: Array[Node] = []
+	candidates.append_array(get_tree().get_nodes_in_group("player"))
+	candidates.append_array(get_tree().get_nodes_in_group("network_player_target"))
+	var nearest: Node3D
+	var nearest_distance: float = INF
+	for candidate in candidates:
+		if not candidate is Node3D or not is_instance_valid(candidate):
+			continue
+		var distance: float = global_position.distance_squared_to((candidate as Node3D).global_position)
+		if distance < nearest_distance:
+			nearest_distance = distance
+			nearest = candidate as Node3D
+	return nearest
 
 func _animate_visual(delta: float, moving: bool) -> void:
 	var visual := get_node_or_null("Visual") as Node3D
@@ -107,7 +121,7 @@ func _try_attack() -> void:
 	attack_timer = attack_cooldown
 	_play_attack_animation()
 	if target.has_method("receive_damage"):
-		target.receive_damage(attack_damage)
+		target.call("receive_damage", attack_damage)
 
 func _play_attack_animation() -> void:
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
