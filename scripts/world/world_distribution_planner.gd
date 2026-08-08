@@ -7,8 +7,12 @@ const LANDMARK_DIVISOR: int = 9
 
 static func build(world_seed: int, nodes: Array) -> Dictionary:
 	var nodes_by_id: Dictionary = _index_nodes(nodes)
-	var settlement_target: int = maxi(1, floori(float(nodes_by_id.size()) / float(SETTLEMENT_DIVISOR))) if nodes_by_id.size() >= 8 else 0
-	var landmark_target: int = maxi(2, floori(float(nodes_by_id.size()) / float(LANDMARK_DIVISOR))) if nodes_by_id.size() >= 10 else maxi(1, settlement_target)
+	var settlement_target: int = 0
+	if nodes_by_id.size() >= 8:
+		settlement_target = maxi(1, floori(float(nodes_by_id.size()) / float(SETTLEMENT_DIVISOR)))
+	var landmark_target: int = maxi(1, settlement_target)
+	if nodes_by_id.size() >= 10:
+		landmark_target = maxi(2, floori(float(nodes_by_id.size()) / float(LANDMARK_DIVISOR)))
 
 	var settlements: Array[String] = _select_settlements(world_seed, nodes_by_id, settlement_target)
 	var blocked: Dictionary = {}
@@ -39,7 +43,9 @@ static func build(world_seed: int, nodes: Array) -> Dictionary:
 		elif landmark_set.has(stable_id):
 			role = "major_landmark"
 		node["distribution_role"] = role
-		node["distribution_id"] = "distribution:%s" % stable_id if role == "settlement" or role == "major_landmark" else ""
+		node["distribution_id"] = ""
+		if role == "settlement" or role == "major_landmark":
+			node["distribution_id"] = "distribution:%s" % stable_id
 		annotated_nodes.append(node)
 	annotated_nodes.sort_custom(_node_less)
 
@@ -89,7 +95,6 @@ static func _select_landmarks(world_seed: int, nodes_by_id: Dictionary, target_c
 
 	var selected: Array[String] = []
 	var used_biomes: Dictionary = {}
-	# First favor biome coverage while respecting spacing.
 	for entry in ranked:
 		if selected.size() >= target_count:
 			break
@@ -99,7 +104,6 @@ static func _select_landmarks(world_seed: int, nodes_by_id: Dictionary, target_c
 			continue
 		selected.append(stable_id)
 		used_biomes[biome] = true
-	# Then fill remaining slots using the same spacing rule.
 	for entry in ranked:
 		if selected.size() >= target_count:
 			break
@@ -133,13 +137,16 @@ static func _touches_any(stable_id: String, selected: Array[String], nodes_by_id
 	return false
 
 static func _placement(stable_id: String, placement_type: String, node: Dictionary) -> Dictionary:
+	var module_id: String = "settlement_hub"
+	if placement_type == "major_landmark":
+		module_id = str(node.get("landmark_module", ""))
 	return {
 		"stable_id": "placement:%s:%s" % [placement_type, stable_id],
 		"region_id": stable_id,
 		"type": placement_type,
 		"biome": str(node.get("biome", "green_highlands")),
 		"graph_depth": int(node.get("graph_depth", 0)),
-		"module": str(node.get("landmark_module", "")) if placement_type == "major_landmark" else "settlement_hub"
+		"module": module_id
 	}
 
 static func _index_nodes(nodes: Array) -> Dictionary:
