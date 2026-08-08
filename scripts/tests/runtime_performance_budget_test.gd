@@ -3,7 +3,7 @@ extends SceneTree
 const PERF := preload("res://scripts/core/runtime_performance_budget.gd")
 const MONITOR := preload("res://scripts/core/runtime_performance_monitor.gd")
 
-func _init() -> void:
+func _initialize() -> void:
 	var catalog: Dictionary = PERF.validate_catalog()
 	if catalog.get("valid", false) != true:
 		_fail("Performance budget catalog is invalid: %s" % str(catalog.get("errors", [])))
