@@ -157,6 +157,39 @@ jobs:
             exit 1
           fi
 
+      - name: Verify authoritative WorldState replication
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_world_state_replicator_test.gd 2>&1 | tee godot-network-world.log
+          grep -q "NETWORK_WORLD_STATE_OK" godot-network-world.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-network-world.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Authoritative WorldState replication errors detected"
+            exit 1
+          fi
+
+      - name: Verify server authoritative combat
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_combat_authority_test.gd 2>&1 | tee godot-network-combat.log
+          grep -q "NETWORK_COMBAT_AUTHORITY_OK" godot-network-combat.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-network-combat.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Server authoritative combat errors detected"
+            exit 1
+          fi
+
+      - name: Verify enemy replication
+        shell: bash
+        run: |
+          set -o pipefail
+          godot --headless --path . --script res://scripts/tests/network_enemy_manager_test.gd 2>&1 | tee godot-network-enemies.log
+          grep -q "NETWORK_ENEMY_MANAGER_OK" godot-network-enemies.log
+          if grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" godot-network-enemies.log | grep -v 'ERROR: Parameter "m" is null\.'; then
+            echo "Enemy replication errors detected"
+            exit 1
+          fi
+
       - name: Launch main scene smoke test
         shell: bash
         run: |
