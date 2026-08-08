@@ -1,60 +1,127 @@
 extends CharacterBody3D
 
+const ITEM_DB := preload("res://scripts/item_db.gd")
+
 @export var move_speed := 6.0
 @export var sprint_speed := 9.0
 @export var acceleration := 18.0
 @export var jump_velocity := 6.0
 @export var mouse_sensitivity := 0.0022
 @export var interaction_distance := 3.0
+@export var attack_range := 2.8
+@export var attack_cooldown := 0.52
+@export var max_health := 100
 
 var gravity := 18.0
+var health := 100
+var attack_timer := 0.0
 var camera_pivot: Node3D
 var camera: Camera3D
 var visual: Node3D
-var loot_counts: Dictionary = {}
+var spawn_position := Vector3.ZERO
+
+var inventory: Dictionary = {"Rusty Sword": 1}
+var equipped_weapon := "Rusty Sword"
+var equipped_armor := ""
+var inventory_open := false
+
 var interaction_label: Label
-var loot_label: Label
+var health_label: Label
+var equipment_label: Label
+var inventory_panel: ColorRect
+var inventory_label: Label
+var status_label: Label
 
 func _ready() -> void:
 	add_to_group("player")
 	camera_pivot = $CameraPivot
 	camera = $CameraPivot/SpringArm3D/Camera3D
 	visual = $Visual
+	spawn_position = global_position
+	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_player_hud()
+	_refresh_hud()
 
 func _build_player_hud() -> void:
 	var layer := CanvasLayer.new()
 	layer.layer = 110
+
+	health_label = Label.new()
+	health_label.position = Vector2(10, 300)
+	health_label.add_theme_font_size_override("font_size", 12)
+	layer.add_child(health_label)
+
+	equipment_label = Label.new()
+	equipment_label.position = Vector2(10, 316)
+	equipment_label.add_theme_font_size_override("font_size", 10)
+	layer.add_child(equipment_label)
+
 	interaction_label = Label.new()
-	interaction_label.position = Vector2(265, 315)
+	interaction_label.position = Vector2(235, 315)
 	interaction_label.add_theme_font_size_override("font_size", 12)
 	interaction_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	interaction_label.size = Vector2(110, 24)
+	interaction_label.size = Vector2(170, 24)
 	layer.add_child(interaction_label)
-	loot_label = Label.new()
-	loot_label.position = Vector2(10, 330)
-	loot_label.add_theme_font_size_override("font_size", 10)
-	layer.add_child(loot_label)
+
+	status_label = Label.new()
+	status_label.position = Vector2(430, 316)
+	status_label.size = Vector2(195, 36)
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	status_label.add_theme_font_size_override("font_size", 10)
+	layer.add_child(status_label)
+
+	inventory_panel = ColorRect.new()
+	inventory_panel.position = Vector2(145, 62)
+	inventory_panel.size = Vector2(350, 225)
+	inventory_panel.color = Color(0.035, 0.025, 0.075, 0.90)
+	inventory_panel.visible = false
+	layer.add_child(inventory_panel)
+
+	inventory_label = Label.new()
+	inventory_label.position = Vector2(18, 14)
+	inventory_label.size = Vector2(314, 197)
+	inventory_label.add_theme_font_size_override("font_size", 12)
+	inventory_panel.add_child(inventory_label)
+
 	add_child(layer)
 
 func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED:
+	if event.is_action_pressed("inventory"):
+		_toggle_inventory()
+		return
+
+	if event is InputEventMouseMotion and Input.mouse_mode == Input.MOUSE_MODE_CAPTURED and not inventory_open:
 		rotate_y(-event.relative.x * mouse_sensitivity)
 		camera_pivot.rotate_x(-event.relative.y * mouse_sensitivity)
 		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, deg_to_rad(-55.0), deg_to_rad(35.0))
+
 	if event.is_action_pressed("ui_cancel"):
-		Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
+		if inventory_open:
+			_toggle_inventory()
+		else:
+			Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if Input.mouse_mode == Input.MOUSE_MODE_CAPTURED else Input.MOUSE_MODE_CAPTURED
+
+	if inventory_open:
+		return
 	if event.is_action_pressed("interact"):
 		_try_interact()
+	if event.is_action_pressed("attack"):
+		_try_attack()
+	if event.is_action_pressed("equip_next"):
+		_cycle_equipment()
 
 func _physics_process(delta: float) -> void:
+	attack_timer = max(attack_timer - delta, 0.0)
+
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	elif Input.is_action_just_pressed("jump"):
+	elif Input.is_action_just_pressed("jump") and not inventory_open:
 		velocity.y = jump_velocity
 
-	var input_vec := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
+	var input_vec := Vector2.ZERO
+	if not inventory_open:
+		input_vec = Input.get_vector("move_left", "move_right", "move_forward", "move_back")
 	var wish_dir := (transform.basis * Vector3(input_vec.x, 0.0, input_vec.y)).normalized()
 	var target_speed := sprint_speed if Input.is_action_pressed("sprint") else move_speed
 	var target_velocity := wish_dir * target_speed
@@ -93,9 +160,150 @@ func _update_interaction_prompt() -> void:
 	else:
 		interaction_label.text = ""
 
+func _try_attack() -> void:
+	if attack_timer > 0.0:
+		return
+	attack_timer = attack_cooldown
+	_play_attack_animation()
+
+	var forward := -global_transform.basis.z
+	forward.y = 0.0
+	forward = forward.normalized()
+	var best_enemy: Node3D = null
+	var best_distance := attack_range
+	for node in get_tree().get_nodes_in_group("enemy"):
+		if not is_instance_valid(node) or not node is Node3D:
+			continue
+		var offset := node.global_position - global_position
+		offset.y = 0.0
+		var distance := offset.length()
+		if distance <= 0.01 or distance > best_distance:
+			continue
+		var direction := offset.normalized()
+		if forward.dot(direction) < 0.20:
+			continue
+		best_enemy = node
+		best_distance = distance
+
+	if best_enemy != null and best_enemy.has_method("receive_damage"):
+		best_enemy.receive_damage(_get_attack_damage(), self)
+		_set_status("Hit for %d" % _get_attack_damage())
+
+func _play_attack_animation() -> void:
+	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
+	if pivot == null:
+		return
+	pivot.rotation_degrees = Vector3(0, 0, -25)
+	var tween := create_tween()
+	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -115), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -25), 0.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+func _get_attack_damage() -> int:
+	return max(8, ITEM_DB.get_damage(equipped_weapon))
+
+func receive_damage(amount: int) -> void:
+	var armor := ITEM_DB.get_armor(equipped_armor)
+	var final_damage := max(1, amount - armor)
+	health = max(0, health - final_damage)
+	_set_status("-%d HP" % final_damage)
+	_refresh_hud()
+	if health <= 0:
+		_respawn()
+
+func _respawn() -> void:
+	global_position = spawn_position
+	velocity = Vector3.ZERO
+	health = max_health
+	_set_status("You awaken by the old road")
+	_refresh_hud()
+
 func receive_loot(item_name: String, amount: int) -> void:
-	loot_counts[item_name] = int(loot_counts.get(item_name, 0)) + amount
-	var pieces: Array[String] = []
-	for key in loot_counts.keys():
-		pieces.append("%s x%d" % [key, loot_counts[key]])
-	loot_label.text = "Loot: " + "   ".join(pieces)
+	inventory[item_name] = int(inventory.get(item_name, 0)) + amount
+	_set_status("Found %s" % item_name)
+	_auto_equip_upgrade(item_name)
+	_refresh_hud()
+
+func _auto_equip_upgrade(item_name: String) -> void:
+	var item_type := ITEM_DB.get_type(item_name)
+	if item_type == "weapon":
+		if ITEM_DB.get_damage(item_name) > ITEM_DB.get_damage(equipped_weapon):
+			equip_item(item_name)
+	elif item_type == "armor":
+		if equipped_armor.is_empty() or ITEM_DB.get_armor(item_name) > ITEM_DB.get_armor(equipped_armor):
+			equip_item(item_name)
+
+func equip_item(item_name: String) -> void:
+	if int(inventory.get(item_name, 0)) <= 0:
+		return
+	var item_type := ITEM_DB.get_type(item_name)
+	if item_type == "weapon":
+		equipped_weapon = item_name
+	elif item_type == "armor":
+		equipped_armor = item_name
+	else:
+		return
+	_update_equipment_visuals()
+	_set_status("Equipped %s" % item_name)
+	_refresh_hud()
+
+func _cycle_equipment() -> void:
+	var equippable: Array[String] = []
+	for key in inventory.keys():
+		var item_name := str(key)
+		if int(inventory[key]) > 0 and ITEM_DB.is_equippable(item_name):
+			equippable.append(item_name)
+	if equippable.is_empty():
+		return
+	equippable.sort()
+	var current_index := -1
+	for i in range(equippable.size()):
+		if equippable[i] == equipped_weapon or equippable[i] == equipped_armor:
+			current_index = i
+			break
+	equip_item(equippable[(current_index + 1) % equippable.size()])
+
+func _toggle_inventory() -> void:
+	inventory_open = not inventory_open
+	inventory_panel.visible = inventory_open
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE if inventory_open else Input.MOUSE_MODE_CAPTURED
+	_refresh_hud()
+
+func _refresh_hud() -> void:
+	if health_label == null:
+		return
+	health_label.text = "HP  %d / %d" % [health, max_health]
+	var armor_text := equipped_armor if not equipped_armor.is_empty() else "None"
+	equipment_label.text = "Weapon: %s   Armor: %s" % [equipped_weapon, armor_text]
+
+	var lines: Array[String] = []
+	lines.append("INVENTORY")
+	lines.append("------------------------------")
+	var keys := inventory.keys()
+	keys.sort()
+	for key in keys:
+		var item_name := str(key)
+		var marker := ""
+		if item_name == equipped_weapon or item_name == equipped_armor:
+			marker = "  [EQUIPPED]"
+		lines.append("%s  x%d%s" % [item_name, int(inventory[key]), marker])
+	lines.append("")
+	lines.append("I close   •   R equip next")
+	inventory_label.text = "\n".join(lines)
+
+func _update_equipment_visuals() -> void:
+	var blade := get_node_or_null("Visual/WeaponPivot/Blade") as MeshInstance3D
+	if blade != null:
+		var blade_material := StandardMaterial3D.new()
+		blade_material.roughness = 0.35
+		blade_material.albedo_color = Color("94d7ff") if equipped_weapon == "Moon Blade" else Color("a5a8ad")
+		blade.material_override = blade_material
+	var torso := get_node_or_null("Visual/Torso") as MeshInstance3D
+	if torso != null:
+		var torso_material := StandardMaterial3D.new()
+		torso_material.roughness = 0.9
+		torso_material.albedo_color = Color("434754") if equipped_armor == "Warden Mail" else Color("29273b")
+		torso.material_override = torso_material
+
+func _set_status(text: String) -> void:
+	if status_label != null:
+		status_label.text = text
