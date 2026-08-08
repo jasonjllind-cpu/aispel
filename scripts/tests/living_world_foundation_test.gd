@@ -62,6 +62,7 @@ func _test_reputation_persistence_and_prices() -> bool:
 	var merchant := Node.new()
 	merchant.set_script(MERCHANT_SYSTEM_SCRIPT)
 	get_root().add_child(merchant)
+	merchant.set("faction_system", factions)
 	if int(merchant.call("_adjusted_buy_price", 10, "roadfolk")) != 9:
 		printerr("Friendly merchant buy price mismatch")
 		return false
