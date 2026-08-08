@@ -14,9 +14,11 @@ func _init() -> void:
 	world_state.name = "DungeonWorldState"
 	get_root().add_child(world_state)
 
+	# Keep the system outside the SceneTree in this contract test. This avoids
+	# scheduling its production deferred installer while we inject dependencies
+	# explicitly, and prevents shutdown-time lifecycle callbacks from racing quit().
 	var system := Node.new()
 	system.set_script(DUNGEON_SYSTEM_SCRIPT)
-	world.add_child(system)
 	system.set("world", world)
 	system.set("world_state", world_state)
 	var generator = DUNGEON_GENERATOR_SCRIPT.new()
@@ -74,9 +76,9 @@ func _test_instance(system: Node, world_state: Node) -> bool:
 	var boss_position: Vector3 = boss.global_position
 	system.call("on_boss_defeated", "moon_catacombs", "hollow_king", boss_position)
 	var boss_state: Dictionary = world_state.call("get_entity_state", "boss:hollow_king")
-	if not bool(boss_state.get("dead", false)):
+	if boss_state.get("dead", false) != true:
 		return _fail("Boss defeat was not persisted")
-	if not bool(world_state.call("get_flag", "dungeon:moon_catacombs:boss_defeated", false)):
+	if world_state.call("get_flag", "dungeon:moon_catacombs:boss_defeated", false) != true:
 		return _fail("Dungeon completion flag was not persisted")
 	var reward := root.get_node_or_null("loot_dungeon_moon_catacombs_boss_reward")
 	if reward == null or int(reward.get("amount")) != 5:
