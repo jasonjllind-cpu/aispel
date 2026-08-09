@@ -24,9 +24,11 @@ var ridge_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var biome_map: RefCounted
 var profile: Dictionary = {}
+var resolved_slot_height_cache: Dictionary = {}
 
 func configure(seed_value: int) -> void:
 	world_seed = _sanitize_seed(seed_value)
+	resolved_slot_height_cache.clear()
 	var profile_rng := RandomNumberGenerator.new()
 	profile_rng.seed = generation_seed("world", "terrain_profile")
 	var style_index: int = profile_rng.randi_range(0, 3)
@@ -214,11 +216,54 @@ func _sample_height(region_id: String, region_center: Vector3, local: Vector2, b
 		var center: Vector2 = slot.get("center", Vector2.ZERO)
 		var radius: float = max(1.0, float(slot.get("radius", 8.0)))
 		var feather: float = max(2.0, float(slot.get("feather", 6.0)))
-		var target_height: float = clamp(float(slot.get("height", 0.08)), MIN_TERRAIN_HEIGHT, 2.0)
+		var target_height: float = _resolved_slot_height(region_center, biome, slot)
 		var blend: float = _feather_blend(local.distance_to(center), radius, feather)
 		if blend > 0.0:
 			height = lerp(height, target_height, blend)
 	return clamp(height, MIN_TERRAIN_HEIGHT, MAX_TERRAIN_HEIGHT)
+
+func resolved_reserved_slot_height(region_center: Vector3, preferred_biome: String, slot: Dictionary) -> float:
+	_ensure_configured()
+	var biome: Dictionary = BIOME_CATALOG.get_biome(preferred_biome)
+	return _resolved_slot_height(region_center, biome, slot)
+
+
+func _resolved_slot_height(region_center: Vector3, biome: Dictionary, slot: Dictionary) -> float:
+	var center: Vector2 = slot.get("center", Vector2.ZERO)
+	var mode: String = str(slot.get("height_mode", "absolute"))
+	if mode != "terrain":
+		return clamp(float(slot.get("height", 0.08)), MIN_TERRAIN_HEIGHT, MAX_TERRAIN_HEIGHT)
+
+	var cache_key := "%s:%s:%.3f:%.3f:%.3f:%.3f:%.3f:%.3f" % [
+		str(profile.get("signature", world_seed)),
+		str(slot.get("id", "slot")),
+		region_center.x,
+		region_center.z,
+		center.x,
+		center.y,
+		float(biome.get("terrain_scale", 1.0)),
+		float(biome.get("elevation", 1.0))
+	]
+	if resolved_slot_height_cache.has(cache_key):
+		return float(resolved_slot_height_cache[cache_key])
+
+	# Terrain-relative slots preserve the generated world's elevation. Sampling
+	# around the whole feather edge prevents a tiny fixed-height spawn crater
+	# when a high-elevation seed is selected.
+	var radius: float = max(1.0, float(slot.get("radius", 6.0)))
+	var feather: float = max(2.0, float(slot.get("feather", 12.0)))
+	var ring_radius: float = radius + feather
+	var total_height: float = _raw_height(region_center, center, biome)
+	var sample_count: int = 1
+	for angle_index in range(8):
+		var angle: float = TAU * float(angle_index) / 8.0
+		var offset := Vector2(cos(angle), sin(angle)) * ring_radius
+		total_height += _raw_height(region_center, center + offset, biome)
+		sample_count += 1
+	var target_height: float = clamp(total_height / float(sample_count), MIN_TERRAIN_HEIGHT, MAX_TERRAIN_HEIGHT)
+	resolved_slot_height_cache[cache_key] = target_height
+	return target_height
+
 
 func _raw_height(region_center: Vector3, local: Vector2, biome: Dictionary) -> float:
 	var noise_offset: Vector2 = profile.get("noise_offset", Vector2.ZERO)
@@ -306,12 +351,12 @@ func _primary_route_2d(region_id: String, reserved_slots: Array[Dictionary]) -> 
 		var side := Vector2(-direction.y, direction.x)
 		var rng := RandomNumberGenerator.new()
 		rng.seed = generation_seed(region_id, "primary_route_segment_%d" % segment_index)
-		var bend: float = rng.randf_range(-region_radius * 0.22, region_radius * 0.22)
-		var secondary: float = rng.randf_range(-region_radius * 0.07, region_radius * 0.07)
+		var bend: float = rng.randf_range(-region_radius * 0.14, region_radius * 0.14)
+		var secondary: float = rng.randf_range(-region_radius * 0.035, region_radius * 0.035)
 		# Bound the largest possible curve derivative, not only the straight-line
 		# distance. This keeps road samples close even for strongly bent seeds.
 		var forward_length: float = start.distance_to(finish)
-		var maximum_side_derivative: float = PI * abs(bend) + TAU * abs(secondary)
+		var maximum_side_derivative: float = PI * abs(bend) + 3.0 * PI * abs(secondary)
 		var maximum_curve_derivative: float = sqrt(
 			forward_length * forward_length
 			+ maximum_side_derivative * maximum_side_derivative
@@ -322,7 +367,13 @@ func _primary_route_2d(region_id: String, reserved_slots: Array[Dictionary]) -> 
 				continue
 			var t: float = float(step_index) / float(steps)
 			var point: Vector2 = start.lerp(finish, t)
-			point += side * (sin(t * PI) * bend + sin(t * TAU) * secondary)
+			# Both offsets and their first derivatives are zero at every anchor.
+			# That removes the cusp at player spawn which could fold the road
+			# ribbon back over itself.
+			var edge_fade: float = sin(t * PI)
+			var bend_shape: float = edge_fade * edge_fade
+			var secondary_shape: float = sin(t * TAU) * edge_fade
+			point += side * (bend_shape * bend + secondary_shape * secondary)
 			var max_length: float = region_radius * 1.12
 			if point.length() > max_length:
 				point = point.normalized() * max_length
