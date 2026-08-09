@@ -2,6 +2,7 @@ extends SceneTree
 
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const CONTENT_GENERATOR_SCRIPT := preload("res://scripts/world/procedural_content_generator.gd")
+const WORLD_STATE_SCRIPT := preload("res://scripts/core/world_state.gd")
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const JOB_QUEUE_SCRIPT := preload("res://scripts/world/generation_job_queue.gd")
 
@@ -186,10 +187,17 @@ func _test_validator_rejections() -> bool:
 func _test_extreme_seed_sanitization() -> bool:
 	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
 	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+	var world_state: Node = WORLD_STATE_SCRIPT.new()
 	for raw_seed in [0, -1, -2147483648, 2147483647]:
 		generator.call("configure", raw_seed)
-		if int(generator.get("world_seed")) <= 0:
+		var generator_seed: int = int(generator.get("world_seed"))
+		var state_seed: int = int(world_state.call("sanitize_seed", raw_seed))
+		if generator_seed <= 0:
+			world_state.free()
 			return _fail("Seed sanitization left a non-positive world seed")
+		if generator_seed != state_seed:
+			world_state.free()
+			return _fail("WorldState and WorldGenerator normalized seed %d differently" % raw_seed)
 		var chunk: Dictionary = generator.call(
 			"generate_chunk_data",
 			"starting_valley",
@@ -199,7 +207,9 @@ func _test_extreme_seed_sanitization() -> bool:
 			REGION_CATALOG.get_slots("starting_valley")
 		)
 		if not _valid_nonfallback_chunk(generator, chunk):
+			world_state.free()
 			return _fail("Sanitized seed %d could not generate a valid chunk" % raw_seed)
+	world_state.free()
 	return true
 
 func _test_job_queue_cancellation() -> bool:
