@@ -4,7 +4,8 @@ const RUNTIME_PERFORMANCE_MONITOR := preload("res://scripts/core/runtime_perform
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 
-const PLAYER_SURFACE_TOLERANCE: float = 0.35
+const PLAYER_SURFACE_TOLERANCE: float = 0.75
+const PLAYER_RECOVERY_CLEARANCE: float = 0.25
 const PLAYER_RECOVERY_INTERVAL: float = 0.25
 
 var player_recovery_elapsed: float = 0.0
@@ -86,7 +87,7 @@ func sanitize_outdoor_player_position(candidate: Vector3, seed_value: int = 0) -
 	var terrain_y: float = float(surface.get("height", candidate.y))
 	if candidate.y >= terrain_y - PLAYER_SURFACE_TOLERANCE:
 		return candidate
-	return Vector3(candidate.x, terrain_y + 1.2, candidate.z)
+	return Vector3(candidate.x, terrain_y + PLAYER_RECOVERY_CLEARANCE, candidate.z)
 
 
 func generated_surface_sample(world_position: Vector3, seed_value: int) -> Dictionary:
@@ -111,7 +112,7 @@ func generated_surface_sample(world_position: Vector3, seed_value: int) -> Dicti
 	var local_position := Vector2(world_position.x - center.x, world_position.z - center.z)
 	var generator: RefCounted = _terrain_generator_for_seed(seed_value)
 	var terrain_height: float = float(generator.call(
-		"sample_height_at",
+		"sample_mesh_height_at",
 		center,
 		biome_id,
 		local_position,
