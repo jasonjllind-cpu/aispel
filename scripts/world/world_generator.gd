@@ -201,7 +201,15 @@ func _primary_route_2d(region_id: String, reserved_slots: Array[Dictionary]) -> 
 		rng.seed = generation_seed(region_id, "primary_route_segment_%d" % segment_index)
 		var bend: float = rng.randf_range(-region_radius * 0.22, region_radius * 0.22)
 		var secondary: float = rng.randf_range(-region_radius * 0.07, region_radius * 0.07)
-		var steps: int = max(6, int(ceil(start.distance_to(finish) / 4.0)))
+		# Bound the largest possible curve derivative, not only the straight-line
+		# distance. This keeps road samples close even for strongly bent seeds.
+		var forward_length: float = start.distance_to(finish)
+		var maximum_side_derivative: float = PI * abs(bend) + TAU * abs(secondary)
+		var maximum_curve_derivative: float = sqrt(
+			forward_length * forward_length
+			+ maximum_side_derivative * maximum_side_derivative
+		)
+		var steps: int = max(6, int(ceil(maximum_curve_derivative / 3.5)))
 		for step_index in range(steps + 1):
 			if segment_index > 0 and step_index == 0:
 				continue
