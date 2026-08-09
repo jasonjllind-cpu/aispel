@@ -4,6 +4,13 @@ const RUNTIME_PERFORMANCE_MONITOR := preload("res://scripts/core/runtime_perform
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 
+const PLAYER_SURFACE_TOLERANCE: float = 0.35
+const PLAYER_RECOVERY_INTERVAL: float = 0.25
+
+var player_recovery_elapsed: float = 0.0
+var terrain_height_generator: RefCounted
+var terrain_height_seed: int = 0
+
 # The playable client now uses the procedural systems in main.tscn as the
 # authoritative visible world. Keep only presentation, a safety floor, the
 # player and HUD from the original hand-authored prototype.
@@ -26,7 +33,13 @@ func _spawn_player() -> void:
 	var player := get_node_or_null("Player") as CharacterBody3D
 	if player == null:
 		return
-	player.position = generated_player_spawn_position(_active_world_seed())
+	var safe_spawn: Vector3 = generated_player_spawn_position(_active_world_seed())
+	player.position = safe_spawn
+	# Player._ready() runs inside super._spawn_player() and records the old
+	# prototype position. Replace that checkpoint after applying the generated
+	# terrain height so death/respawn cannot return below the map.
+	player.set("spawn_position", player.global_position)
+	player.set("velocity", Vector3.ZERO)
 
 
 func generated_player_spawn_position(seed_value: int) -> Vector3:
@@ -61,6 +74,91 @@ func _active_world_seed() -> int:
 	if world_state != null:
 		return int(world_state.get("world_seed"))
 	return 8242601
+
+
+func sanitize_outdoor_player_position(candidate: Vector3, seed_value: int = 0) -> Vector3:
+	if seed_value <= 0 and _dungeon_active():
+		return candidate
+	var resolved_seed: int = seed_value if seed_value > 0 else _active_world_seed()
+	var surface: Dictionary = generated_surface_sample(candidate, resolved_seed)
+	if surface.is_empty():
+		return candidate
+	var terrain_y: float = float(surface.get("height", candidate.y))
+	if candidate.y >= terrain_y - PLAYER_SURFACE_TOLERANCE:
+		return candidate
+	return Vector3(candidate.x, terrain_y + 1.2, candidate.z)
+
+
+func generated_surface_sample(world_position: Vector3, seed_value: int) -> Dictionary:
+	var closest_region_id := ""
+	var closest_distance: float = INF
+	for region_id in REGION_CATALOG.get_region_ids():
+		var region: Dictionary = REGION_CATALOG.get_region(region_id)
+		var center: Vector3 = region.get("center", Vector3.ZERO)
+		var distance: float = Vector2(world_position.x - center.x, world_position.z - center.z).length()
+		if distance < closest_distance:
+			closest_distance = distance
+			closest_region_id = region_id
+	if closest_region_id.is_empty():
+		return {}
+
+	var closest_region: Dictionary = REGION_CATALOG.get_region(closest_region_id)
+	var radius: float = max(24.0, float(closest_region.get("radius", 62.0)))
+	if closest_distance > radius * 1.35:
+		return {}
+	var center: Vector3 = closest_region.get("center", Vector3.ZERO)
+	var biome_id: String = str(closest_region.get("biome", "green_highlands"))
+	var local_position := Vector2(world_position.x - center.x, world_position.z - center.z)
+	var generator: RefCounted = _terrain_generator_for_seed(seed_value)
+	var terrain_height: float = float(generator.call(
+		"sample_height_at",
+		center,
+		biome_id,
+		local_position,
+		REGION_CATALOG.get_slots(closest_region_id),
+		closest_region_id
+	))
+	return {
+		"region_id": closest_region_id,
+		"height": center.y + terrain_height
+	}
+
+
+func _terrain_generator_for_seed(seed_value: int) -> RefCounted:
+	if terrain_height_generator == null:
+		terrain_height_generator = WORLD_GENERATOR_SCRIPT.new()
+	if terrain_height_seed != seed_value:
+		terrain_height_seed = seed_value
+		terrain_height_generator.call("configure", terrain_height_seed)
+	return terrain_height_generator
+
+
+func _physics_process(delta: float) -> void:
+	if DisplayServer.get_name() == "headless":
+		return
+	player_recovery_elapsed += delta
+	if player_recovery_elapsed < PLAYER_RECOVERY_INTERVAL:
+		return
+	player_recovery_elapsed = 0.0
+	if _dungeon_active():
+		return
+	var player := get_node_or_null("Player") as CharacterBody3D
+	if player == null:
+		return
+	var corrected: Vector3 = sanitize_outdoor_player_position(player.global_position)
+	if corrected.distance_squared_to(player.global_position) <= 0.0001:
+		return
+	player.global_position = corrected
+	player.set("spawn_position", corrected)
+	player.set("velocity", Vector3.ZERO)
+
+
+func _dungeon_active() -> bool:
+	var dungeon_system := get_node_or_null("DungeonSystem")
+	if dungeon_system == null:
+		return false
+	var value: Variant = dungeon_system.get("active_dungeon_id")
+	return value != null and not str(value).is_empty()
 
 
 func _build_safety_floor() -> void:
