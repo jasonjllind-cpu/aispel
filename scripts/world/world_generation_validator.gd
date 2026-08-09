@@ -1,8 +1,8 @@
 extends RefCounted
 class_name WorldGenerationValidator
 
-const CHUNK_FORMAT_VERSION: int = 2
-const CONTENT_FORMAT_VERSION: int = 2
+const CHUNK_FORMAT_VERSION: int = 3
+const CONTENT_FORMAT_VERSION: int = 3
 const MAX_WORLD_HEIGHT: float = 24.0
 const MIN_WORLD_HEIGHT: float = -2.0
 const MAX_CONTENT_ITEMS: int = 512
