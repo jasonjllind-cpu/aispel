@@ -204,9 +204,18 @@ func _test_two_sided_terrain_collision() -> bool:
 	var body := chunk.get("static_body") as StaticBody3D
 	var collision := body.get_node_or_null("CollisionShape3D") as CollisionShape3D if body != null else null
 	var shape := collision.shape as ConcavePolygonShape3D if collision != null else null
-	if shape == null or not shape.is_backface_collision_enabled():
+	var source_faces: PackedVector3Array = chunk_data.get("collision_faces", PackedVector3Array())
+	var runtime_faces: PackedVector3Array = shape.get_faces() if shape != null else PackedVector3Array()
+	if runtime_faces.size() != source_faces.size() * 2:
 		chunk.free()
-		return _fail("Generated terrain collision was not two-sided")
+		return _fail("Generated terrain did not duplicate both triangle windings")
+	if runtime_faces.size() < 6 or (
+		runtime_faces[0] != runtime_faces[3]
+		or runtime_faces[1] != runtime_faces[5]
+		or runtime_faces[2] != runtime_faces[4]
+	):
+		chunk.free()
+		return _fail("Generated terrain reverse winding did not match its front face")
 	chunk.free()
 	return true
 
