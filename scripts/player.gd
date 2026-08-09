@@ -13,6 +13,7 @@ const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 @export var attack_range := 2.8
 @export var attack_cooldown := 0.52
 @export var max_health := 100
+@export var visual_ground_clearance := 0.12
 
 var gravity := 18.0
 var health := 100
@@ -40,6 +41,9 @@ func _ready() -> void:
 	camera_pivot = $CameraPivot
 	camera = $CameraPivot/SpringArm3D/Camera3D
 	visual = $Visual
+	# Keep the rendered boots slightly above the mathematical collision plane.
+	# This prevents faceted terrain from visually cutting through the model.
+	visual.position.y = visual_ground_clearance
 	spawn_position = global_position
 	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
@@ -166,10 +170,10 @@ func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> vo
 			cape.rotation_degrees.x = 8.0 + abs(sin(walk_phase)) * (8.0 if sprinting else 4.0)
 		# Limb swing communicates walking without moving the entire character
 		# vertically relative to its collider and the terrain.
-		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 12.0, 1.0))
+		visual.position.y = lerp(visual.position.y, visual_ground_clearance, min(delta * 12.0, 1.0))
 	else:
 		walk_phase += delta * 2.0
-		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 8.0, 1.0))
+		visual.position.y = lerp(visual.position.y, visual_ground_clearance, min(delta * 8.0, 1.0))
 		if arm_l != null:
 			arm_l.rotation_degrees.x = lerp(arm_l.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
 		if arm_r != null:
