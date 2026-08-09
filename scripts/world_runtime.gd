@@ -1,6 +1,8 @@
 extends "res://scripts/world.gd"
 
 const RUNTIME_PERFORMANCE_MONITOR := preload("res://scripts/core/runtime_performance_monitor.gd")
+const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
+const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 
 # The playable client now uses the procedural systems in main.tscn as the
 # authoritative visible world. Keep only presentation, a safety floor, the
@@ -18,6 +20,48 @@ func _ready() -> void:
 	_spawn_player()
 	_build_retro_postprocess()
 	_build_hud()
+
+func _spawn_player() -> void:
+	super._spawn_player()
+	var player := get_node_or_null("Player") as CharacterBody3D
+	if player == null:
+		return
+	player.position = generated_player_spawn_position(_active_world_seed())
+
+
+func generated_player_spawn_position(seed_value: int) -> Vector3:
+	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
+	var center: Vector3 = region.get("center", Vector3.ZERO)
+	var biome_id: String = str(region.get("biome", "green_highlands"))
+	var slots: Array[Dictionary] = REGION_CATALOG.get_slots("starting_valley")
+	var spawn_local := Vector2(0, 24)
+	for slot in slots:
+		if str(slot.get("id", "")) == "player_spawn":
+			spawn_local = slot.get("center", spawn_local)
+			break
+	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+	generator.call("configure", seed_value)
+	var terrain_height: float = float(generator.call(
+		"sample_height_at",
+		center,
+		biome_id,
+		spawn_local,
+		slots,
+		"starting_valley"
+	))
+	return Vector3(
+		center.x + spawn_local.x,
+		center.y + terrain_height + 1.2,
+		center.z + spawn_local.y
+	)
+
+
+func _active_world_seed() -> int:
+	var world_state := get_node_or_null("/root/WorldState")
+	if world_state != null:
+		return int(world_state.get("world_seed"))
+	return 8242601
+
 
 func _build_safety_floor() -> void:
 	# A hidden fallback below generated terrain catches the player only if a
