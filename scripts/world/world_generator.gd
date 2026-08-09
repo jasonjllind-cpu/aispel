@@ -312,6 +312,32 @@ func _raw_height(region_center: Vector3, local: Vector2, biome: Dictionary) -> f
 	height += local.dot(macro_direction) / 100.0 * float(profile.get("macro_tilt", 2.0))
 	return clamp(height, MIN_TERRAIN_HEIGHT, MAX_TERRAIN_HEIGHT)
 
+func sample_mesh_height_at(region_center: Vector3, preferred_biome: String, local_position: Vector2, reserved_slots: Array[Dictionary] = [], region_id: String = "starting_valley") -> float:
+	_ensure_configured()
+	var biome: Dictionary = BIOME_CATALOG.get_biome(preferred_biome)
+	var route: Array[Vector2] = _primary_route_2d(region_id, reserved_slots)
+	var step: float = CHUNK_SIZE / float(CELLS_PER_SIDE)
+	var cell_x: int = int(floor(local_position.x / step))
+	var cell_z: int = int(floor(local_position.y / step))
+	var base := Vector2(float(cell_x) * step, float(cell_z) * step)
+	var u: float = clamp((local_position.x - base.x) / step, 0.0, 1.0)
+	var v: float = clamp((local_position.y - base.y) / step, 0.0, 1.0)
+	var height_a: float = _sample_height(region_id, region_center, base, biome, reserved_slots, route)
+	var height_b: float = _sample_height(region_id, region_center, base + Vector2(step, 0), biome, reserved_slots, route)
+	var height_c: float = _sample_height(region_id, region_center, base + Vector2(0, step), biome, reserved_slots, route)
+	var height_d: float = _sample_height(region_id, region_center, base + Vector2(step, step), biome, reserved_slots, route)
+	# TerrainChunk uses triangles a-c-b and b-c-d. Interpolate on those exact
+	# faces so recovery compares against rendered/collision geometry rather
+	# than the smoother analytical noise surface between vertices.
+	if u + v <= 1.0:
+		return height_a + (height_b - height_a) * u + (height_c - height_a) * v
+	return (
+		height_b * (1.0 - v)
+		+ height_c * (1.0 - u)
+		+ height_d * (u + v - 1.0)
+	)
+
+
 func _road_target_height(region_center: Vector3, local: Vector2, biome: Dictionary, route: Array[Vector2]) -> float:
 	if route.is_empty():
 		return _raw_height(region_center, local, biome)
