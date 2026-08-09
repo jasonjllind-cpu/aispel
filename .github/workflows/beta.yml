@@ -68,3 +68,28 @@ jobs:
             echo "::error title=Streaming memory script errors::$message"
             exit 1
           fi
+
+      - name: Verify deterministic and distinct world generation v2
+        shell: bash
+        run: |
+          set -o pipefail
+          set +e
+          timeout 45s godot --headless --path . --script res://scripts/tests/world_generator_v2_test.gd 2>&1 | tee world-generator-v2.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            message=$(tail -n 60 world-generator-v2.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=World generator v2 Godot failure::$message"
+            exit "$status"
+          fi
+          if ! grep -q "WORLD_GENERATOR_V2_OK" world-generator-v2.log; then
+            message=$(tail -n 60 world-generator-v2.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=World generator v2 marker missing::$message"
+            exit 1
+          fi
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Invalid assignment|Invalid access|Compile Error:|^ERROR:" world-generator-v2.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=World generator v2 script errors::$message"
+            exit 1
+          fi
