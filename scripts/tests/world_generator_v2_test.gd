@@ -51,6 +51,8 @@ func _run() -> void:
 		return
 	if not _test_spawn_grade_and_runtime_alignment():
 		return
+	if not _test_player_visual_ground_alignment():
+		return
 	if not _test_road_ribbon_surface():
 		return
 	if not _test_legacy_overlay_disabled():
@@ -211,11 +213,11 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		var mesh_spawn_height: float = float(generator.call("sample_mesh_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
 		var buried_position := Vector3(spawn_position.x, -2.0, spawn_position.z)
 		var recovered_position: Vector3 = runtime.call("sanitize_outdoor_player_position", buried_position, seed_value)
-		var expected_recovery := Vector3(spawn_position.x, mesh_spawn_height + 0.25, spawn_position.z)
+		var expected_recovery := Vector3(spawn_position.x, mesh_spawn_height + 0.12, spawn_position.z)
 		if recovered_position.distance_to(expected_recovery) > 0.025:
 			runtime.free()
 			return _fail("Under-map recovery did not return to generated mesh terrain for seed %d" % seed_value)
-		var near_surface_position := Vector3(spawn_position.x, mesh_spawn_height - 0.5, spawn_position.z)
+		var near_surface_position := Vector3(spawn_position.x, mesh_spawn_height - 0.08, spawn_position.z)
 		var stable_position: Vector3 = runtime.call("sanitize_outdoor_player_position", near_surface_position, seed_value)
 		if stable_position != near_surface_position:
 			runtime.free()
@@ -240,6 +242,32 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 					return _fail("Seed %d created a cliff wall beside player spawn" % seed_value)
 				previous_height = current_height
 	return true
+
+func _test_player_visual_ground_alignment() -> bool:
+	var runtime: Node3D = WORLD_RUNTIME_SCRIPT.new()
+	var player := CharacterBody3D.new()
+	runtime.call("_build_player_visual", player)
+	var leg_left := player.get_node_or_null("Visual/LegL") as MeshInstance3D
+	var leg_right := player.get_node_or_null("Visual/LegR") as MeshInstance3D
+	if leg_left == null or leg_right == null:
+		player.free()
+		runtime.free()
+		return _fail("Player visual did not build both legs")
+	for leg in [leg_left, leg_right]:
+		if not leg.mesh is CylinderMesh:
+			player.free()
+			runtime.free()
+			return _fail("Player leg did not use the expected cylinder mesh")
+		var leg_mesh := leg.mesh as CylinderMesh
+		var visual_bottom: float = leg.position.y - leg_mesh.height * 0.5
+		if abs(visual_bottom) > 0.001:
+			player.free()
+			runtime.free()
+			return _fail("Player model extended below its collider/ground origin")
+	player.free()
+	runtime.free()
+	return true
+
 
 func _test_road_ribbon_surface() -> bool:
 	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
