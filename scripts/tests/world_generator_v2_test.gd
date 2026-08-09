@@ -205,12 +205,12 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
 		generator.call("configure", seed_value)
 		var spawn_height: float = float(generator.call("sample_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
+		var mesh_spawn_height: float = float(generator.call("sample_mesh_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
 		var runtime: Node3D = WORLD_RUNTIME_SCRIPT.new()
 		var spawn_position: Vector3 = runtime.call("generated_player_spawn_position", seed_value)
-		if abs(spawn_position.y - (spawn_height + 1.2)) > 0.025:
+		if abs(spawn_position.y - (mesh_spawn_height + 0.08)) > 0.025:
 			runtime.free()
-			return _fail("Player spawn did not follow generated terrain for seed %d" % seed_value)
-		var mesh_spawn_height: float = float(generator.call("sample_mesh_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
+			return _fail("Player feet did not spawn on the collision mesh for seed %d" % seed_value)
 		var buried_position := Vector3(spawn_position.x, -2.0, spawn_position.z)
 		var recovered_position: Vector3 = runtime.call("sanitize_outdoor_player_position", buried_position, seed_value)
 		var expected_recovery := Vector3(spawn_position.x, mesh_spawn_height + 0.12, spawn_position.z)
@@ -230,6 +230,13 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		if not bool(runtime.call("should_apply_emergency_recovery", buried_position, recovered_position)):
 			runtime.free()
 			return _fail("Terrain guard did not recognize a real fall-through at seed %d" % seed_value)
+		runtime.set("player_recovery_armed", true)
+		if not bool(runtime.call("consume_emergency_recovery", buried_position, recovered_position)):
+			runtime.free()
+			return _fail("Terrain guard did not consume the first real recovery at seed %d" % seed_value)
+		if bool(runtime.call("consume_emergency_recovery", buried_position, recovered_position)):
+			runtime.free()
+			return _fail("Terrain guard could repeatedly bounce the player at seed %d" % seed_value)
 		var valid_position := spawn_position + Vector3(0, 3.0, 0)
 		var preserved_position: Vector3 = runtime.call("sanitize_outdoor_player_position", valid_position, seed_value)
 		runtime.free()
