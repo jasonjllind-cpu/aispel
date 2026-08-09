@@ -8,7 +8,7 @@ const REGION_CONFIG: Dictionary = {
 	"starting_valley": {
 		"biome": "green_highlands",
 		"slots": [
-			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 5.5, "feather": 4.5, "height": 0.08}
+			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 6.0, "feather": 14.0, "height_mode": "terrain"}
 		]
 	},
 	"blackwood": {
