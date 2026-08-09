@@ -56,6 +56,8 @@ func _generate_road(region_id: String, region: Dictionary, center: Vector3, biom
 		var finish: Vector2 = anchors[segment_index + 1]
 		var distance: float = start.distance_to(finish)
 		var steps: int = max(2, int(ceil(distance / 5.0)))
+		var curve_strength: float = rng.randf_range(-11.0, 11.0)
+		var secondary_curve: float = rng.randf_range(-4.0, 4.0)
 		for step_index in range(steps):
 			if segment_index > 0 and step_index == 0:
 				continue
@@ -63,7 +65,7 @@ func _generate_road(region_id: String, region: Dictionary, center: Vector3, biom
 			var local: Vector2 = start.lerp(finish, t)
 			var tangent: Vector2 = (finish - start).normalized()
 			var side := Vector2(-tangent.y, tangent.x)
-			var curve: float = sin(t * PI) * rng.randf_range(-2.2, 2.2)
+			var curve: float = sin(t * PI) * curve_strength + sin(t * TAU) * secondary_curve
 			local += side * curve
 			var y: float = _height(center, biome_id, local, slots)
 			points.append(Vector3(local.x, y + 0.035, local.y))
@@ -74,7 +76,8 @@ func _generate_road(region_id: String, region: Dictionary, center: Vector3, biom
 func _generate_pois(region_id: String, region: Dictionary, center: Vector3, biome_id: String, slots: Array[Dictionary], road: Array[Vector3]) -> Array[Dictionary]:
 	var rng := RandomNumberGenerator.new()
 	rng.seed = _seed(region_id, "poi")
-	var target_count: int = int(region.get("poi_count", 3))
+	var base_poi_count: int = int(region.get("poi_count", 3))
+	var target_count: int = base_poi_count + rng.randi_range(0, 2)
 	var region_radius: float = float(region.get("radius", 62.0))
 	var placement_radius: float = min(region_radius - 12.0, 72.0 if region_id == "starting_valley" else 48.0)
 	var result: Array[Dictionary] = []
@@ -110,8 +113,10 @@ func _generate_vegetation(region_id: String, region: Dictionary, center: Vector3
 	var placement_radius: float = min(region_radius - 7.0, 78.0 if region_id == "starting_valley" else 51.0)
 	var tree_density: float = float(biome.get("tree_density", 0.4))
 	var rock_density: float = float(biome.get("rock_density", 0.2))
-	var tree_target: int = int(20.0 + tree_density * (55.0 if region_id == "starting_valley" else 70.0))
-	var rock_target: int = int(10.0 + rock_density * 35.0)
+	var base_tree_target: float = 20.0 + tree_density * (55.0 if region_id == "starting_valley" else 70.0)
+	var base_rock_target: float = 10.0 + rock_density * 35.0
+	var tree_target: int = max(12, int(base_tree_target * tree_rng.randf_range(0.65, 1.55)))
+	var rock_target: int = max(7, int(base_rock_target * rock_rng.randf_range(0.65, 1.55)))
 	var trees: Array[Dictionary] = []
 	var rocks: Array[Dictionary] = []
 	var tree_points: Array[Vector2] = []
