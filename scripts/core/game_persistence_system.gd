@@ -23,6 +23,7 @@ var last_error: String = ""
 var pending_session: Dictionary = {}
 var restore_retry_count: int = 0
 var restore_retry_queued: bool = false
+var skipped_autosave_restore: bool = false
 
 func _ready() -> void:
 	add_to_group("persistence_system")
@@ -45,6 +46,9 @@ func _install() -> void:
 	await get_tree().process_frame
 	player = _find_player()
 	_apply_pending_session()
+	if skipped_autosave_restore:
+		request_autosave()
+		dirty_elapsed = STATE_DEBOUNCE_SECONDS
 	set_process(true)
 
 func _process(delta: float) -> void:
@@ -126,6 +130,9 @@ func request_autosave() -> void:
 	dirty_elapsed = 0.0
 
 func _load_world_state_early() -> void:
+	if world_state.has_method("consume_autosave_restore_skip") and bool(world_state.call("consume_autosave_restore_skip")):
+		skipped_autosave_restore = true
+		return
 	if not service.call("slot_exists", AUTOSAVE_SLOT):
 		return
 	var result: Dictionary = service.call("read_snapshot", AUTOSAVE_SLOT)
