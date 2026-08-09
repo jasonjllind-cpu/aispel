@@ -1,5 +1,13 @@
 extends "res://scripts/world/procedural_exploration_system.gd"
 
+func _build_ui() -> void:
+	super._build_ui()
+	if status_label != null:
+		status_label.free()
+		status_label = null
+	if discovery_card != null:
+		discovery_card.position = Vector2(145, 42)
+
 func _is_headless_runtime() -> bool:
 	return DisplayServer.get_name() == "headless"
 
