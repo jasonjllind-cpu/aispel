@@ -203,19 +203,20 @@ func _test_two_sided_terrain_collision() -> bool:
 		return _fail("Terrain chunk could not build for collision regression test")
 	var body := chunk.get("static_body") as StaticBody3D
 	var collision := body.get_node_or_null("CollisionShape3D") as CollisionShape3D if body != null else null
-	var shape := collision.shape as ConcavePolygonShape3D if collision != null else null
-	var source_faces: PackedVector3Array = chunk_data.get("collision_faces", PackedVector3Array())
-	var runtime_faces: PackedVector3Array = shape.get_faces() if shape != null else PackedVector3Array()
-	if runtime_faces.size() != source_faces.size() * 2:
+	var shape := collision.shape as HeightMapShape3D if collision != null else null
+	var source_vertices: PackedVector3Array = chunk_data.get("vertices", PackedVector3Array())
+	var side: int = int(round(sqrt(float(source_vertices.size()))))
+	if shape == null or shape.get_map_width() != side or shape.get_map_depth() != side:
 		chunk.free()
-		return _fail("Generated terrain did not duplicate both triangle windings")
-	if runtime_faces.size() < 6 or (
-		runtime_faces[0] != runtime_faces[3]
-		or runtime_faces[1] != runtime_faces[5]
-		or runtime_faces[2] != runtime_faces[4]
-	):
+		return _fail("Generated terrain did not build a square heightmap collision")
+	var runtime_heights: PackedFloat32Array = shape.get_map_data()
+	if runtime_heights.size() != source_vertices.size():
 		chunk.free()
-		return _fail("Generated terrain reverse winding did not match its front face")
+		return _fail("Generated terrain heightmap size did not match rendered vertices")
+	for index in range(source_vertices.size()):
+		if abs(runtime_heights[index] - source_vertices[index].y) > EPSILON:
+			chunk.free()
+			return _fail("Generated terrain collision height differed from its rendered vertex")
 	chunk.free()
 	return true
 
