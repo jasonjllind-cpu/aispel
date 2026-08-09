@@ -204,7 +204,7 @@ func _test_two_sided_terrain_collision() -> bool:
 	var body := chunk.get("static_body") as StaticBody3D
 	var collision: CollisionShape3D = null
 	if body != null:
-		collision = body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+		collision = body.get_node_or_null("TerrainHeightmapCollision") as CollisionShape3D
 	var shape: HeightMapShape3D = null
 	if collision != null and collision.shape is HeightMapShape3D:
 		shape = collision.shape as HeightMapShape3D
