@@ -6,7 +6,7 @@ const BIOME_CATALOG := preload("res://scripts/world/biome_catalog.gd")
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const VALIDATOR := preload("res://scripts/world/world_generation_validator.gd")
 
-const FORMAT_VERSION: int = 2
+const FORMAT_VERSION: int = 3
 const DEFAULT_WORLD_SEED: int = 8242601
 const MAX_POIS: int = 6
 const MAX_TREES: int = 140
