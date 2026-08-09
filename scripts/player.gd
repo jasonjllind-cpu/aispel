@@ -13,7 +13,7 @@ const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 @export var attack_range := 2.8
 @export var attack_cooldown := 0.52
 @export var max_health := 100
-@export var visual_ground_clearance := 0.12
+@export var visual_ground_clearance := 0.42
 
 var gravity := 18.0
 var health := 100
