@@ -67,11 +67,29 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 	static_body = StaticBody3D.new()
 	static_body.name = "TerrainCollision"
 	var collision := CollisionShape3D.new()
-	var shape := ConcavePolygonShape3D.new()
-	# Store both windings explicitly. Godot 4.3 can discard the runtime
-	# backface flag for generated concave shapes, while reversed triangles are
-	# deterministic and collide from below as well as above.
-	shape.set_faces(_two_sided_faces(collision_faces))
+	var vertices_per_side: int = int(round(sqrt(float(vertices.size()))))
+	if vertices_per_side * vertices_per_side != vertices.size() or vertices_per_side < 2:
+		build_error = "terrain_vertices_not_square"
+		push_error("Terrain chunk could not build heightmap collision: %s" % build_error)
+		return false
+	var heights := PackedFloat32Array()
+	heights.resize(vertices.size())
+	for index in range(vertices.size()):
+		heights[index] = vertices[index].y
+	var shape := HeightMapShape3D.new()
+	shape.set_map_width(vertices_per_side)
+	shape.set_map_depth(vertices_per_side)
+	shape.set_map_data(heights)
+	var first_vertex: Vector3 = vertices[0]
+	var last_vertex: Vector3 = vertices[vertices.size() - 1]
+	var step_x: float = abs(vertices[1].x - first_vertex.x)
+	var step_z: float = abs(vertices[vertices_per_side].z - first_vertex.z)
+	collision.position = Vector3(
+		(first_vertex.x + last_vertex.x) * 0.5,
+		0.0,
+		(first_vertex.z + last_vertex.z) * 0.5
+	)
+	collision.scale = Vector3(step_x, 1.0, step_z)
 	collision.shape = shape
 	static_body.add_child(collision)
 	add_child(static_body)
@@ -79,24 +97,6 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 	build_succeeded = true
 	visible = true
 	return true
-
-func _two_sided_faces(source: PackedVector3Array) -> PackedVector3Array:
-	var result := PackedVector3Array()
-	result.resize(source.size() * 2)
-	var write_index: int = 0
-	for index in range(0, source.size(), 3):
-		var a: Vector3 = source[index]
-		var b: Vector3 = source[index + 1]
-		var c: Vector3 = source[index + 2]
-		result[write_index] = a
-		result[write_index + 1] = b
-		result[write_index + 2] = c
-		result[write_index + 3] = a
-		result[write_index + 4] = c
-		result[write_index + 5] = b
-		write_index += 6
-	return result
-
 
 func reset_runtime() -> void:
 	for child in get_children():
