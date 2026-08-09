@@ -8,6 +8,7 @@ const JOB_QUEUE_SCRIPT := preload("res://scripts/world/generation_job_queue.gd")
 const PROCEDURAL_EXPLORATION_SCRIPT := preload("res://scripts/world/procedural_exploration_system.gd")
 const LEGACY_EXPLORATION_RUNTIME := preload("res://scripts/exploration_runtime.gd")
 const WORLD_RUNTIME_SCRIPT := preload("res://scripts/world_runtime.gd")
+const TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
 
 const TEST_SEEDS: Array[int] = [1001, 40777, 243840798, 91082601, 2147483000]
 const TEST_CHUNKS: Array[Vector2i] = [
@@ -48,6 +49,8 @@ func _run() -> void:
 	if not _test_seed_determinism_and_difference():
 		return
 	if not _test_chunk_seams_and_safe_slots():
+		return
+	if not _test_two_sided_terrain_collision():
 		return
 	if not _test_spawn_grade_and_runtime_alignment():
 		return
@@ -178,6 +181,33 @@ func _test_chunk_seams_and_safe_slots() -> bool:
 				var inner_height: float = float(generator.call("sample_height_at", center, biome_id, inner_point, slots, "starting_valley"))
 				if abs(inner_height - target_height) > 0.025:
 					return _fail("Reserved slot %s was not flat across its safe footprint for seed %d" % [str(slot.get("id", "")), seed_value])
+	return true
+
+
+func _test_two_sided_terrain_collision() -> bool:
+	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
+	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+	generator.call("configure", TEST_SEEDS[0])
+	var chunk_data: Dictionary = generator.call(
+		"generate_chunk_data",
+		"starting_valley",
+		str(region.get("biome", "green_highlands")),
+		region.get("center", Vector3.ZERO),
+		Vector2i.ZERO,
+		REGION_CATALOG.get_slots("starting_valley")
+	)
+	var chunk := TERRAIN_CHUNK_SCRIPT.new() as Node3D
+	get_root().add_child(chunk)
+	if not bool(chunk.call("build_from_data", chunk_data)):
+		chunk.free()
+		return _fail("Terrain chunk could not build for collision regression test")
+	var body := chunk.get("static_body") as StaticBody3D
+	var collision := body.get_node_or_null("CollisionShape3D") as CollisionShape3D if body != null else null
+	var shape := collision.shape as ConcavePolygonShape3D if collision != null else null
+	if shape == null or not shape.backface_collision:
+		chunk.free()
+		return _fail("Generated terrain collision was not two-sided")
+	chunk.free()
 	return true
 
 
