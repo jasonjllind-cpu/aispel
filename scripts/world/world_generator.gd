@@ -13,15 +13,23 @@ var height_noise := FastNoiseLite.new()
 var detail_noise := FastNoiseLite.new()
 var ridge_noise := FastNoiseLite.new()
 var biome_map: RefCounted
+var terrain_amplitude_multiplier: float = 1.0
+var terrain_detail_multiplier: float = 1.0
+var terrain_ridge_multiplier: float = 1.0
 
 func configure(seed_value: int) -> void:
 	world_seed = seed_value if seed_value != 0 else 8242601
+	var profile_rng := RandomNumberGenerator.new()
+	profile_rng.seed = _layer_seed("terrain:profile")
 	height_noise.seed = _layer_seed("terrain:base")
-	height_noise.frequency = 0.0105
+	height_noise.frequency = profile_rng.randf_range(0.0065, 0.0165)
 	detail_noise.seed = _layer_seed("terrain:detail")
-	detail_noise.frequency = 0.031
+	detail_noise.frequency = profile_rng.randf_range(0.024, 0.052)
 	ridge_noise.seed = _layer_seed("terrain:ridge")
-	ridge_noise.frequency = 0.0065
+	ridge_noise.frequency = profile_rng.randf_range(0.0045, 0.011)
+	terrain_amplitude_multiplier = profile_rng.randf_range(0.82, 1.35)
+	terrain_detail_multiplier = profile_rng.randf_range(0.72, 1.45)
+	terrain_ridge_multiplier = profile_rng.randf_range(0.70, 1.55)
 	biome_map = BIOME_MAP_SCRIPT.new()
 	biome_map.call("configure", _layer_seed("biome_map"))
 
@@ -114,8 +122,10 @@ func _sample_height(global_x: float, global_z: float, local_x: float, local_z: f
 	var base_value: float = (height_noise.get_noise_2d(global_x, global_z) + 1.0) * 0.5
 	var detail_value: float = detail_noise.get_noise_2d(global_x, global_z)
 	var ridge_value: float = abs(ridge_noise.get_noise_2d(global_x, global_z))
-	var amplitude: float = (0.55 + elevation * 0.20) * terrain_scale
-	var height: float = 0.10 + base_value * amplitude + detail_value * detail_strength * 0.22 + ridge_value * ridge_strength * 0.55
+	var amplitude: float = (2.4 + elevation * 1.8) * terrain_scale * terrain_amplitude_multiplier
+	var height: float = 0.10 + base_value * amplitude
+	height += detail_value * detail_strength * 0.95 * terrain_detail_multiplier
+	height += ridge_value * ridge_strength * 2.8 * terrain_ridge_multiplier
 
 	var road_t: float = clamp((48.0 - local_z) / 96.0, 0.0, 1.0)
 	var road_x: float = sin(road_t * TAU * 1.15) * 5.0
