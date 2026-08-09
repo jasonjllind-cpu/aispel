@@ -7,6 +7,7 @@ const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const PLAYER_SURFACE_TOLERANCE: float = 0.12
 const PLAYER_RECOVERY_CLEARANCE: float = 0.12
 const PLAYER_RECOVERY_INTERVAL: float = 0.25
+const PLAYER_EMERGENCY_RECOVERY_DEPTH: float = 1.0
 
 var player_recovery_elapsed: float = 0.0
 var terrain_height_generator: RefCounted
@@ -147,11 +148,18 @@ func _physics_process(delta: float) -> void:
 	if player == null:
 		return
 	var corrected: Vector3 = sanitize_outdoor_player_position(player.global_position)
-	if corrected.distance_squared_to(player.global_position) <= 0.0001:
+	if not should_apply_emergency_recovery(player.global_position, corrected):
 		return
 	player.global_position = corrected
 	player.set("spawn_position", corrected)
 	player.set("velocity", Vector3.ZERO)
+
+
+func should_apply_emergency_recovery(current: Vector3, corrected: Vector3) -> bool:
+	# Ordinary floor contact on a faceted slope can place the capsule root a
+	# few centimeters below the vertical surface sample. Never teleport for
+	# that; only recover an unmistakable fall through the terrain.
+	return corrected.y - current.y >= PLAYER_EMERGENCY_RECOVERY_DEPTH
 
 
 func _dungeon_active() -> bool:
