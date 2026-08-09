@@ -31,3 +31,19 @@ func _install_runtime_performance_monitor() -> void:
 	monitor.name = "RuntimePerformanceMonitor"
 	monitor.set_script(RUNTIME_PERFORMANCE_MONITOR)
 	add_child(monitor)
+
+func _build_hud() -> void:
+	var layer := CanvasLayer.new()
+	layer.layer = 100
+	var label := Label.new()
+	var seed_value: int = 8242601
+	var world_state := get_node_or_null("/root/WorldState")
+	if world_state != null:
+		seed_value = int(world_state.get("world_seed"))
+	label.text = "WASD move  •  Shift run  •  G world seed  •  Seed %d" % seed_value
+	label.position = Vector2(8, 6)
+	label.size = Vector2(624, 16)
+	label.clip_text = true
+	label.add_theme_font_size_override("font_size", 8)
+	layer.add_child(label)
+	add_child(layer)
