@@ -16,7 +16,7 @@ const REGIONS: Dictionary = {
 		"slots": [
 			# Only the immediate player footprint is fixed. Every former
 			# prototype landmark is generated from the active world seed.
-			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 5.5, "feather": 4.5, "height": 0.08}
+			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 6.0, "feather": 14.0, "height_mode": "terrain"}
 		]
 	},
 	"blackwood": {
