@@ -9,6 +9,7 @@ const PLAYER_RECOVERY_CLEARANCE: float = 0.12
 const PLAYER_SPAWN_CLEARANCE: float = 0.08
 const PLAYER_RECOVERY_INTERVAL: float = 0.25
 const PLAYER_EMERGENCY_RECOVERY_DEPTH: float = 1.0
+const PLAYER_FALL_THROUGH_Y: float = -1.0
 
 var player_recovery_elapsed: float = 0.0
 var player_recovery_armed: bool = true
@@ -163,17 +164,23 @@ func _physics_process(delta: float) -> void:
 	var player := get_node_or_null("Player") as CharacterBody3D
 	if player == null:
 		return
-	var surface: Dictionary = generated_surface_sample(player.global_position, _active_world_seed())
-	if not surface.is_empty():
-		var terrain_y: float = float(surface.get("height", player.global_position.y))
-		if player.is_on_floor() and player.global_position.y >= terrain_y - PLAYER_SURFACE_TOLERANCE:
-			player_recovery_armed = true
+	if player.is_on_floor() and player.global_position.y > PLAYER_FALL_THROUGH_Y:
+		player_recovery_armed = true
+		return
+	# Generated terrain never goes below zero. Only the hidden safety floor is
+	# below this boundary, so ordinary slope contact cannot trigger a teleport.
+	if not should_run_fall_through_recovery(player.global_position):
+		return
 	var corrected: Vector3 = sanitize_outdoor_player_position(player.global_position)
 	if not consume_emergency_recovery(player.global_position, corrected):
 		return
 	player.global_position = corrected
 	player.set("spawn_position", corrected)
 	player.set("velocity", Vector3.ZERO)
+
+
+func should_run_fall_through_recovery(current: Vector3) -> bool:
+	return current.y <= PLAYER_FALL_THROUGH_Y
 
 
 func consume_emergency_recovery(current: Vector3, corrected: Vector3) -> bool:
