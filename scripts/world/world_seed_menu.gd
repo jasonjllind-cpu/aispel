@@ -114,7 +114,8 @@ func _randomize_seed() -> void:
 	while seed_value == current_seed:
 		seed_value = rng.randi_range(100000, 2147483000)
 	seed_edit.text = str(seed_value)
-	_apply_seed()
+	seed_edit.grab_focus()
+	seed_edit.select_all()
 
 func _apply_seed() -> void:
 	var text_value: String = seed_edit.text.strip_edges()
