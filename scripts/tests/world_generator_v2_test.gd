@@ -289,9 +289,9 @@ func _test_player_visual_ground_alignment() -> bool:
 		var leg_mesh := leg.mesh as CylinderMesh
 		var visual_root := leg.get_parent() as Node3D
 		var visual_bottom: float = visual_root.position.y + leg.position.y - leg_mesh.height * 0.5
-		if visual_bottom < 0.10 or visual_bottom > 0.14:
+		if visual_bottom < 0.40 or visual_bottom > 0.44:
 			runtime.free()
-			return _fail("Player model did not keep a stable visual ground clearance")
+			return _fail("Player model did not clear steep generated terrain")
 	runtime.free()
 	return true
 
