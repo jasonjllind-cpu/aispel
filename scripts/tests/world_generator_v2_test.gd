@@ -207,8 +207,16 @@ func _test_two_sided_terrain_collision() -> bool:
 	var source_vertices: PackedVector3Array = chunk_data.get("vertices", PackedVector3Array())
 	var side: int = int(round(sqrt(float(source_vertices.size()))))
 	if shape == null or shape.get_map_width() != side or shape.get_map_depth() != side:
+		var shape_type: String = shape.get_class() if shape != null else "null"
+		var actual_width: int = shape.get_map_width() if shape != null else -1
+		var actual_depth: int = shape.get_map_depth() if shape != null else -1
 		chunk.free()
-		return _fail("Generated terrain did not build a square heightmap collision")
+		return _fail("Generated terrain heightmap mismatch type=%s width=%d depth=%d expected=%d" % [
+			shape_type,
+			actual_width,
+			actual_depth,
+			side
+		])
 	var runtime_heights: PackedFloat32Array = shape.get_map_data()
 	if runtime_heights.size() != source_vertices.size():
 		chunk.free()
