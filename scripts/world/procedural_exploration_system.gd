@@ -14,6 +14,8 @@ const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 const REGION_SCAN_INTERVAL: float = 0.40
 const DISCOVERY_SCAN_INTERVAL: float = 0.20
 const JOB_BUDGET_MSEC: float = 4.0
+const GENERATION_FORMAT_VERSION: int = 2
+const DEFAULT_WORLD_SEED: int = 8242601
 
 var world: Node3D
 var world_state: Node
@@ -27,6 +29,10 @@ var discovery_card: ColorRect
 var discovery_label: Label
 var discovery_tween: Tween
 var last_build_msec: float = 0.0
+var configured_world_seed: int = 0
+var generation_epoch: int = 0
+var rejected_content_batches: int = 0
+var fallback_content_batches: int = 0
 
 func _ready() -> void:
 	set_process(false)
@@ -39,14 +45,17 @@ func _install() -> void:
 	if world == null:
 		return
 	world_state = get_node_or_null("/root/WorldState")
+	configured_world_seed = _normalized_seed(_world_seed())
+	generation_epoch = 1
 	content_generator = CONTENT_GENERATOR_SCRIPT.new()
-	content_generator.call("configure", _world_seed())
+	content_generator.call("configure", configured_world_seed)
 	job_queue = JOB_QUEUE_SCRIPT.new()
 	_build_ui()
 	_scan_regions()
 	set_process(true)
 
 func _process(delta: float) -> void:
+	_sync_generation_context()
 	if job_queue != null:
 		job_queue.call("process_budget", 1, JOB_BUDGET_MSEC)
 	scan_timer += delta
@@ -75,38 +84,105 @@ func _scan_regions() -> void:
 			_schedule_region(region_node, region_id, "GeneratedExploration")
 
 func _schedule_region(parent: Node3D, region_id: String, child_name: String) -> void:
-	if parent.has_node(child_name) or queued_regions.has(region_id) or job_queue == null:
+	if not is_instance_valid(parent) or parent.has_node(child_name) or job_queue == null:
 		return
-	queued_regions[region_id] = true
-	var callback := Callable(self, "_build_region_content").bind(parent, region_id, child_name)
-	var accepted: bool = bool(job_queue.call("enqueue", "exploration:%s" % region_id, callback))
+	var queue_key := "exploration:%d:%s:%d" % [generation_epoch, region_id, parent.get_instance_id()]
+	if queued_regions.has(queue_key):
+		return
+	queued_regions[queue_key] = true
+	var callback := Callable(self, "_build_region_content").bind(
+		parent,
+		region_id,
+		child_name,
+		queue_key,
+		generation_epoch,
+		configured_world_seed
+	)
+	var accepted: bool = bool(job_queue.call("enqueue", queue_key, callback))
 	if not accepted:
-		queued_regions.erase(region_id)
+		queued_regions.erase(queue_key)
 
-func _build_region_content(parent: Node3D, region_id: String, child_name: String) -> void:
+func _build_region_content(parent: Node3D, region_id: String, child_name: String, queue_key: String, expected_epoch: int, expected_seed: int) -> void:
 	var started_usec: int = Time.get_ticks_usec()
-	queued_regions.erase(region_id)
-	if not is_instance_valid(parent) or parent.has_node(child_name):
+	queued_regions.erase(queue_key)
+	if expected_epoch != generation_epoch or expected_seed != configured_world_seed:
+		return
+	if not is_instance_valid(parent) or parent.has_node(child_name) or content_generator == null:
 		return
 	var data_value: Variant = content_generator.call("generate_region_content", region_id)
 	if not data_value is Dictionary:
+		rejected_content_batches += 1
+		return
+	if expected_epoch != generation_epoch or expected_seed != configured_world_seed:
 		return
 	var data: Dictionary = data_value as Dictionary
+	if int(data.get("format_version", 0)) != GENERATION_FORMAT_VERSION:
+		rejected_content_batches += 1
+		return
+	if int(data.get("world_seed", 0)) != expected_seed or str(data.get("region_id", "")) != region_id:
+		rejected_content_batches += 1
+		return
+	var validation_value: Variant = content_generator.call("validate_region_content", data)
+	if not validation_value is Dictionary or (validation_value as Dictionary).get("ok", false) != true:
+		rejected_content_batches += 1
+		var error_code := "invalid_content"
+		if validation_value is Dictionary:
+			error_code = str((validation_value as Dictionary).get("error", error_code))
+		push_error("Exploration generation rejected %s: %s" % [region_id, error_code])
+		return
+	if bool(data.get("fallback", false)):
+		fallback_content_batches += 1
+
 	var biome_id: String = str(data.get("biome_id", "green_highlands"))
 	var biome: Dictionary = BIOME_CATALOG.get_biome(biome_id)
-
 	var root := Node3D.new()
 	root.name = child_name
 	root.add_to_group("generated_exploration_root")
 	root.set_meta("region_id", region_id)
-	parent.add_child(root)
+	root.set_meta("world_seed", expected_seed)
+	root.set_meta("generation_epoch", expected_epoch)
+	root.set_meta("content_signature", str(data.get("content_signature", "")))
 
 	_build_road(root, data, biome)
 	_build_vegetation(root, data, biome)
 	_build_pois(root, data, biome)
 	_build_loot(root, data, biome)
 	_build_encounters(root, data, biome)
+	if expected_epoch != generation_epoch or expected_seed != configured_world_seed:
+		root.free()
+		return
+	if not is_instance_valid(parent) or parent.has_node(child_name):
+		root.free()
+		return
+	parent.add_child(root)
 	last_build_msec = float(Time.get_ticks_usec() - started_usec) / 1000.0
+
+func _sync_generation_context() -> void:
+	if world == null or content_generator == null or job_queue == null:
+		return
+	var current_seed: int = _normalized_seed(_world_seed())
+	if current_seed == configured_world_seed:
+		return
+	configured_world_seed = current_seed
+	generation_epoch += 1
+	job_queue.call("clear")
+	queued_regions.clear()
+	content_generator.call("configure", configured_world_seed)
+	_clear_generated_exploration_roots()
+	_scan_regions()
+
+func _clear_generated_exploration_roots() -> void:
+	if not is_inside_tree():
+		return
+	for value in get_tree().get_nodes_in_group("generated_exploration_root"):
+		if value is Node and is_instance_valid(value):
+			(value as Node).free()
+
+func _exit_tree() -> void:
+	generation_epoch += 1
+	queued_regions.clear()
+	if job_queue != null:
+		job_queue.call("clear")
 
 func _build_road(root: Node3D, data: Dictionary, biome: Dictionary) -> void:
 	var road_value: Variant = data.get("road", [])
@@ -459,7 +535,13 @@ func _refresh_status() -> void:
 	var root_count: int = get_tree().get_nodes_in_group("generated_exploration_root").size()
 	var pending: int = int(job_queue.call("pending_count"))
 	var batch_msec: float = float(job_queue.get("last_batch_msec"))
-	status_label.text = "Exploration gen: %d regions • queue %d • %.1f ms" % [root_count, pending, max(last_build_msec, batch_msec)]
+	status_label.text = "Seed %d • gen %d • queue %d • rejected %d • %.1f ms" % [
+		configured_world_seed,
+		root_count,
+		pending,
+		rejected_content_batches,
+		max(last_build_msec, batch_msec)
+	]
 
 func _get_player() -> Node3D:
 	var players: Array[Node] = get_tree().get_nodes_in_group("player")
@@ -470,7 +552,11 @@ func _get_player() -> Node3D:
 func _world_seed() -> int:
 	if world_state != null:
 		return int(world_state.get("world_seed"))
-	return 8242601
+	return DEFAULT_WORLD_SEED
+
+func _normalized_seed(seed_value: int) -> int:
+	var normalized: int = int(seed_value & 0x7fffffff)
+	return normalized if normalized > 0 else DEFAULT_WORLD_SEED
 
 func _entity_state_bool(entity_id: String, key: String) -> bool:
 	if entity_id.is_empty() or world_state == null or not world_state.has_method("get_entity_state"):
