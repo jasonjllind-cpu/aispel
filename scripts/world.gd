@@ -527,7 +527,7 @@ func _build_hud() -> void:
 	label.add_theme_font_size_override("font_size", 10)
 	layer.add_child(label)
 	var objective := Label.new()
-	objective.text = "Follow the old road. Find the moon shrine, ruined keep and lonely watchtower."
+	objective.text = "Explore the generated valley. Discover its roads, ruins, caves, enemies and hidden loot."
 	objective.position = Vector2(10, 25)
 	objective.add_theme_font_size_override("font_size", 10)
 	layer.add_child(objective)
