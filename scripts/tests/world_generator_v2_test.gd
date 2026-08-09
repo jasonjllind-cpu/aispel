@@ -227,6 +227,12 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		if bool(runtime.call("should_apply_emergency_recovery", shallow_penetration, shallow_correction)):
 			runtime.free()
 			return _fail("Terrain guard would teleport for an ordinary slope contact at seed %d" % seed_value)
+		if bool(runtime.call("should_run_fall_through_recovery", shallow_penetration)):
+			runtime.free()
+			return _fail("Runtime recovery boundary included normal generated terrain at seed %d" % seed_value)
+		if not bool(runtime.call("should_run_fall_through_recovery", buried_position)):
+			runtime.free()
+			return _fail("Runtime recovery boundary missed the hidden safety floor at seed %d" % seed_value)
 		if not bool(runtime.call("should_apply_emergency_recovery", buried_position, recovered_position)):
 			runtime.free()
 			return _fail("Terrain guard did not recognize a real fall-through at seed %d" % seed_value)
@@ -281,10 +287,11 @@ func _test_player_visual_ground_alignment() -> bool:
 			runtime.free()
 			return _fail("Player leg did not use the expected cylinder mesh")
 		var leg_mesh := leg.mesh as CylinderMesh
-		var visual_bottom: float = leg.position.y - leg_mesh.height * 0.5
-		if abs(visual_bottom) > 0.001:
+		var visual_root := leg.get_parent() as Node3D
+		var visual_bottom: float = visual_root.position.y + leg.position.y - leg_mesh.height * 0.5
+		if visual_bottom < 0.10 or visual_bottom > 0.14:
 			runtime.free()
-			return _fail("Player model extended below its collider/ground origin")
+			return _fail("Player model did not keep a stable visual ground clearance")
 	runtime.free()
 	return true
 
