@@ -71,8 +71,10 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 	# Generated triangles can be reached from either side during chunk startup.
 	# Two-sided collision prevents the player from falling through a visually
 	# solid surface because of winding or a one-frame below-surface spawn.
-	shape.backface_collision = true
 	shape.set_faces(collision_faces)
+	# Godot 4.3 rebuilds the concave shape in set_faces(), so enable this only
+	# after the faces exist or the property is reset to false.
+	shape.backface_collision = true
 	collision.shape = shape
 	static_body.add_child(collision)
 	add_child(static_body)
