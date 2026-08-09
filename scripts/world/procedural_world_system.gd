@@ -1,5 +1,7 @@
 extends Node
 
+signal starting_terrain_ready
+
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
 
@@ -37,6 +39,7 @@ var generator: RefCounted
 var elapsed: float = 0.0
 var chunk_data_cache: Dictionary = {}
 var generated_region_count: int = 0
+var starting_terrain_built: bool = false
 var status_label: Label
 
 func _ready() -> void:
@@ -57,8 +60,15 @@ func _install() -> void:
 	generator.call("configure", seed_value)
 	_build_status_ui(seed_value)
 	_build_starting_valley_terrain()
+	starting_terrain_built = world.has_node("GeneratedStartingValley")
+	if starting_terrain_built:
+		starting_terrain_ready.emit()
 	_scan_runtime_regions()
 	set_process(true)
+
+func is_starting_terrain_ready() -> bool:
+	return starting_terrain_built
+
 
 func _process(delta: float) -> void:
 	elapsed += delta
