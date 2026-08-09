@@ -7,8 +7,9 @@ const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const JOB_QUEUE_SCRIPT := preload("res://scripts/world/generation_job_queue.gd")
 const PROCEDURAL_EXPLORATION_SCRIPT := preload("res://scripts/world/procedural_exploration_system.gd")
 const LEGACY_EXPLORATION_RUNTIME := preload("res://scripts/exploration_runtime.gd")
+const WORLD_RUNTIME_SCRIPT := preload("res://scripts/world_runtime.gd")
 
-const TEST_SEEDS: Array[int] = [1001, 40777, 91082601, 2147483000]
+const TEST_SEEDS: Array[int] = [1001, 40777, 243840798, 91082601, 2147483000]
 const TEST_CHUNKS: Array[Vector2i] = [
 	Vector2i(-2, -1),
 	Vector2i(0, 0),
@@ -47,6 +48,8 @@ func _run() -> void:
 	if not _test_seed_determinism_and_difference():
 		return
 	if not _test_chunk_seams_and_safe_slots():
+		return
+	if not _test_spawn_grade_and_runtime_alignment():
 		return
 	if not _test_road_ribbon_surface():
 		return
@@ -159,42 +162,111 @@ func _test_chunk_seams_and_safe_slots() -> bool:
 			return _fail("Adjacent chunks had a visible/collision seam for seed %d" % seed_value)
 		for slot in slots:
 			var slot_center: Vector2 = slot.get("center", Vector2.ZERO)
-			var target_height: float = max(0.02, float(slot.get("height", 0.08)))
 			var actual_height: float = float(generator.call("sample_height_at", center, biome_id, slot_center, slots, "starting_valley"))
+			var target_height: float
+			if str(slot.get("height_mode", "absolute")) == "terrain":
+				target_height = float(generator.call("resolved_reserved_slot_height", center, biome_id, slot))
+			else:
+				target_height = max(0.02, float(slot.get("height", 0.08)))
 			if abs(actual_height - target_height) > 0.025:
 				return _fail("Reserved slot %s was not safely flattened for seed %d" % [str(slot.get("id", "")), seed_value])
+			var radius: float = max(1.0, float(slot.get("radius", 6.0)))
+			for direction in [Vector2.RIGHT, Vector2.LEFT, Vector2.UP, Vector2.DOWN]:
+				var inner_point: Vector2 = slot_center + direction * radius * 0.75
+				var inner_height: float = float(generator.call("sample_height_at", center, biome_id, inner_point, slots, "starting_valley"))
+				if abs(inner_height - target_height) > 0.025:
+					return _fail("Reserved slot %s was not flat across its safe footprint for seed %d" % [str(slot.get("id", "")), seed_value])
+	return true
+
+
+func _test_spawn_grade_and_runtime_alignment() -> bool:
+	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
+	var center: Vector3 = region.get("center", Vector3.ZERO)
+	var biome_id: String = str(region.get("biome", "green_highlands"))
+	var slots: Array[Dictionary] = REGION_CATALOG.get_slots("starting_valley")
+	var spawn_local := Vector2(0, 24)
+	for slot in slots:
+		if str(slot.get("id", "")) == "player_spawn":
+			spawn_local = slot.get("center", spawn_local)
+			break
+	var directions: Array[Vector2] = [
+		Vector2.RIGHT,
+		Vector2.LEFT,
+		Vector2.UP,
+		Vector2.DOWN,
+		Vector2(1, 1).normalized(),
+		Vector2(-1, 1).normalized(),
+		Vector2(1, -1).normalized(),
+		Vector2(-1, -1).normalized()
+	]
+	for seed_value in TEST_SEEDS:
+		var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+		generator.call("configure", seed_value)
+		var spawn_height: float = float(generator.call("sample_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
+		var runtime: Node3D = WORLD_RUNTIME_SCRIPT.new()
+		var spawn_position: Vector3 = runtime.call("generated_player_spawn_position", seed_value)
+		runtime.free()
+		if abs(spawn_position.y - (spawn_height + 1.2)) > 0.025:
+			return _fail("Player spawn did not follow generated terrain for seed %d" % seed_value)
+		for direction in directions:
+			var previous_height: float = spawn_height
+			for step_index in range(1, 11):
+				var sample_point: Vector2 = spawn_local + direction * float(step_index * 2)
+				var current_height: float = float(generator.call("sample_height_at", center, biome_id, sample_point, slots, "starting_valley"))
+				if abs(current_height - previous_height) > 3.25:
+					return _fail("Seed %d created a cliff wall beside player spawn" % seed_value)
+				previous_height = current_height
 	return true
 
 func _test_road_ribbon_surface() -> bool:
 	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
-	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
-	generator.call("configure", TEST_SEEDS[0])
-	var route: Array[Vector3] = generator.call(
-		"primary_route_points",
-		"starting_valley",
-		region.get("center", Vector3.ZERO),
-		str(region.get("biome", "green_highlands")),
-		REGION_CATALOG.get_slots("starting_valley")
-	)
-	var exploration: Node = PROCEDURAL_EXPLORATION_SCRIPT.new()
-	var surface: Dictionary = exploration.call("build_road_surface_data", route)
-	exploration.free()
-	var vertices: PackedVector3Array = surface.get("vertices", PackedVector3Array())
-	var normals: PackedVector3Array = surface.get("normals", PackedVector3Array())
-	var uvs: PackedVector2Array = surface.get("uvs", PackedVector2Array())
-	var indices: PackedInt32Array = surface.get("indices", PackedInt32Array())
-	if vertices.size() != route.size() * 2 or normals.size() != vertices.size() or uvs.size() != vertices.size():
-		return _fail("Road ribbon surface arrays did not match the route")
-	if indices.size() != (route.size() - 1) * 6:
-		return _fail("Road ribbon did not contain exactly two triangles per segment")
-	for index in range(route.size()):
-		var width: float = vertices[index * 2].distance_to(vertices[index * 2 + 1])
-		if abs(width - 4.3) > 0.01:
-			return _fail("Road ribbon width was not stable")
-	for vertex_index in indices:
-		if vertex_index < 0 or vertex_index >= vertices.size():
-			return _fail("Road ribbon contained an out-of-bounds index")
+	for seed_value in TEST_SEEDS:
+		var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+		generator.call("configure", seed_value)
+		var route: Array[Vector3] = generator.call(
+			"primary_route_points",
+			"starting_valley",
+			region.get("center", Vector3.ZERO),
+			str(region.get("biome", "green_highlands")),
+			REGION_CATALOG.get_slots("starting_valley")
+		)
+		for index in range(1, route.size() - 1):
+			var incoming := Vector2(
+				route[index].x - route[index - 1].x,
+				route[index].z - route[index - 1].z
+			).normalized()
+			var outgoing := Vector2(
+				route[index + 1].x - route[index].x,
+				route[index + 1].z - route[index].z
+			).normalized()
+			if incoming.dot(outgoing) <= 0.0:
+				return _fail("Road reversed direction and could fold at seed %d" % seed_value)
+
+		var exploration: Node = PROCEDURAL_EXPLORATION_SCRIPT.new()
+		var surface: Dictionary = exploration.call("build_road_surface_data", route)
+		exploration.free()
+		var vertices: PackedVector3Array = surface.get("vertices", PackedVector3Array())
+		var normals: PackedVector3Array = surface.get("normals", PackedVector3Array())
+		var uvs: PackedVector2Array = surface.get("uvs", PackedVector2Array())
+		var indices: PackedInt32Array = surface.get("indices", PackedInt32Array())
+		if vertices.size() != route.size() * 2 or normals.size() != vertices.size() or uvs.size() != vertices.size():
+			return _fail("Road ribbon surface arrays did not match the route")
+		if indices.size() != (route.size() - 1) * 6:
+			return _fail("Road ribbon did not contain exactly two triangles per segment")
+		for index in range(route.size()):
+			var width: float = vertices[index * 2].distance_to(vertices[index * 2 + 1])
+			if abs(width - 3.3) > 0.01:
+				return _fail("Road ribbon width was not stable")
+			if index > 0:
+				var left_edge: float = vertices[index * 2].distance_to(vertices[(index - 1) * 2])
+				var right_edge: float = vertices[index * 2 + 1].distance_to(vertices[(index - 1) * 2 + 1])
+				if max(left_edge, right_edge) > 10.0:
+					return _fail("Road ribbon formed an implausibly tall connector at seed %d" % seed_value)
+		for vertex_index in indices:
+			if vertex_index < 0 or vertex_index >= vertices.size():
+				return _fail("Road ribbon contained an out-of-bounds index")
 	return true
+
 
 func _test_legacy_overlay_disabled() -> bool:
 	var legacy_runtime: Node = LEGACY_EXPLORATION_RUNTIME.new()
