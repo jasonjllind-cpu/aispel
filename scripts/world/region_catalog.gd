@@ -9,18 +9,14 @@ const REGIONS: Dictionary = {
 		"center": Vector3(0, 0, 0),
 		"radius": 100.0,
 		"external": true,
-		"poi_count": 2,
+		"poi_count": 4,
 		"entry": Vector2(0, 52),
 		"exit": Vector2(0, -82),
-		"landmark": "The Ruined Keep",
+		"landmark": "Generated frontier",
 		"slots": [
-			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 14.0, "feather": 8.0, "height": 0.015},
-			{"id": "abandoned_camp", "center": Vector2(-16, 4), "radius": 10.0, "feather": 6.0, "height": 0.015},
-			{"id": "moon_shrine", "center": Vector2(-34, -28), "radius": 12.0, "feather": 7.0, "height": 0.015},
-			{"id": "ruined_keep", "center": Vector2(28, -58), "radius": 24.0, "feather": 10.0, "height": 0.015},
-			{"id": "lonely_watchtower", "center": Vector2(-58, -72), "radius": 14.0, "feather": 8.0, "height": 0.015},
-			{"id": "whispering_crypt", "center": Vector2(72, -34), "radius": 17.0, "feather": 9.0, "height": 0.015},
-			{"id": "starfall_grove", "center": Vector2(66, 46), "radius": 13.0, "feather": 8.0, "height": 0.015}
+			# Only the immediate player footprint is fixed. Every former
+			# prototype landmark is generated from the active world seed.
+			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 5.5, "feather": 4.5, "height": 0.08}
 		]
 	},
 	"blackwood": {
