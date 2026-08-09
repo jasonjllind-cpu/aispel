@@ -127,9 +127,8 @@ func _apply_seed() -> void:
 		seed_value = 8242601
 	if world_state != null and world_state.has_method("new_world"):
 		world_state.call("new_world", seed_value)
-	var persistence_system := get_parent().get_node_or_null("GamePersistenceSystem")
-	if persistence_system != null and persistence_system.has_method("save_now"):
-		persistence_system.call("save_now")
+		if world_state.has_method("preserve_new_world_on_scene_reload"):
+			world_state.call("preserve_new_world_on_scene_reload")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	get_tree().reload_current_scene()
 
