@@ -12,6 +12,7 @@ var current_region_id: String = "starting_valley"
 var discovered_regions: Dictionary = {}
 var world_flags: Dictionary = {}
 var entity_states: Dictionary = {}
+var _skip_next_autosave_restore: bool = false
 
 func _ready() -> void:
 	_apply_command_line_seed()
@@ -24,6 +25,15 @@ func new_world(seed_value: int = DEFAULT_WORLD_SEED) -> void:
 	entity_states.clear()
 	world_reset.emit(world_seed)
 	state_changed.emit("world", "reset")
+
+func preserve_new_world_on_scene_reload() -> void:
+	_skip_next_autosave_restore = true
+
+func consume_autosave_restore_skip() -> bool:
+	if not _skip_next_autosave_restore:
+		return false
+	_skip_next_autosave_restore = false
+	return true
 
 func sanitize_seed(seed_value: int) -> int:
 	if seed_value == 0:
