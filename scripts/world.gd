@@ -68,6 +68,12 @@ func _build_environment() -> void:
 	moon.material_override = _mat(Color("dbe1ff"), 0.15)
 	add_child(moon)
 
+func _seed_for(scope_id: String) -> int:
+	var world_state := get_node_or_null("/root/WorldState")
+	if world_state != null and world_state.has_method("stable_seed"):
+		return int(world_state.call("stable_seed", "legacy:%s" % scope_id))
+	return int(("8242601:legacy:%s" % scope_id).hash() & 0x7fffffff)
+
 func _mat(color: Color, rough: float = 1.0, texture: Texture2D = null) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
 	material.albedo_color = color
@@ -255,7 +261,7 @@ func _build_moon_shrine() -> void:
 
 func _build_forest() -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 82426
+	rng.seed = _seed_for("forest")
 	for i in range(125):
 		var p := Vector3(rng.randf_range(-100, 100), 0, rng.randf_range(-100, 100))
 		if abs(p.x) < 7.0 and p.z > -95.0 and p.z < 30.0:
@@ -295,7 +301,7 @@ func _create_gnarled_tree(pos: Vector3, tree_scale: float, lean: float) -> void:
 
 func _build_ground_details() -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 1905
+	rng.seed = _seed_for("ground_details")
 	for i in range(70):
 		var pos := Vector3(rng.randf_range(-92, 92), 0.11, rng.randf_range(-92, 92))
 		if abs(pos.x) < 4.0 and pos.z > -92.0 and pos.z < 25.0:
