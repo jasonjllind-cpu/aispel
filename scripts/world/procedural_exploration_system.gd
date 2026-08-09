@@ -198,7 +198,7 @@ func _build_road(root: Node3D, data: Dictionary, biome: Dictionary) -> void:
 	var road_mesh := ArrayMesh.new()
 	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	var material := _mat(biome.get("road_color", Color("827760")), null, 1.0)
-	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	material.cull_mode = BaseMaterial3D.CULL_BACK
 	road_mesh.surface_set_material(0, material)
 
 	var road_root := Node3D.new()
@@ -224,7 +224,7 @@ func build_road_surface_data(road_value: Variant) -> Dictionary:
 	var normals := PackedVector3Array()
 	var uvs := PackedVector2Array()
 	var indices := PackedInt32Array()
-	var half_width: float = 2.15
+	var half_width: float = 1.65
 	var cumulative_distance: float = 0.0
 	for index in range(road.size()):
 		var point: Vector3 = road[index]
