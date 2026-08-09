@@ -205,9 +205,19 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		var spawn_height: float = float(generator.call("sample_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
 		var runtime: Node3D = WORLD_RUNTIME_SCRIPT.new()
 		var spawn_position: Vector3 = runtime.call("generated_player_spawn_position", seed_value)
-		runtime.free()
 		if abs(spawn_position.y - (spawn_height + 1.2)) > 0.025:
+			runtime.free()
 			return _fail("Player spawn did not follow generated terrain for seed %d" % seed_value)
+		var buried_position := Vector3(spawn_position.x, -2.0, spawn_position.z)
+		var recovered_position: Vector3 = runtime.call("sanitize_outdoor_player_position", buried_position, seed_value)
+		if recovered_position.distance_to(spawn_position) > 0.025:
+			runtime.free()
+			return _fail("Under-map recovery did not return to generated terrain for seed %d" % seed_value)
+		var valid_position := spawn_position + Vector3(0, 3.0, 0)
+		var preserved_position: Vector3 = runtime.call("sanitize_outdoor_player_position", valid_position, seed_value)
+		runtime.free()
+		if preserved_position != valid_position:
+			return _fail("Terrain recovery moved an already-safe player for seed %d" % seed_value)
 		for direction in directions:
 			var previous_height: float = spawn_height
 			for step_index in range(1, 11):
