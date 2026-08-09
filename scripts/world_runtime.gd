@@ -14,10 +14,15 @@ func _ready() -> void:
 	if DisplayServer.get_name() == "headless":
 		return
 	_build_environment()
-	_build_ground()
+	_build_safety_floor()
 	_spawn_player()
 	_build_retro_postprocess()
 	_build_hud()
+
+func _build_safety_floor() -> void:
+	# A hidden fallback below generated terrain catches the player only if a
+	# terrain chunk has not finished building yet.
+	_add_static_box(self, Vector3(0, -6.0, 0), Vector3(230, 8.0, 230), Color("171722"))
 
 func _install_runtime_performance_monitor() -> void:
 	if has_node("RuntimePerformanceMonitor"):
