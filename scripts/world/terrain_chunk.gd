@@ -68,21 +68,35 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 	static_body.name = "TerrainCollision"
 	var collision := CollisionShape3D.new()
 	var shape := ConcavePolygonShape3D.new()
-	# Generated triangles can be reached from either side during chunk startup.
-	# Two-sided collision prevents the player from falling through a visually
-	# solid surface because of winding or a one-frame below-surface spawn.
-	shape.set_faces(collision_faces)
+	# Store both windings explicitly. Godot 4.3 can discard the runtime
+	# backface flag for generated concave shapes, while reversed triangles are
+	# deterministic and collide from below as well as above.
+	shape.set_faces(_two_sided_faces(collision_faces))
 	collision.shape = shape
-	# CollisionShape3D may rebuild/duplicate a concave resource on assignment.
-	# Enable backface collision on the exact assigned runtime shape.
-	var assigned_shape := collision.shape as ConcavePolygonShape3D
-	assigned_shape.set_backface_collision_enabled(true)
 	static_body.add_child(collision)
 	add_child(static_body)
 
 	build_succeeded = true
 	visible = true
 	return true
+
+func _two_sided_faces(source: PackedVector3Array) -> PackedVector3Array:
+	var result := PackedVector3Array()
+	result.resize(source.size() * 2)
+	var write_index: int = 0
+	for index in range(0, source.size(), 3):
+		var a: Vector3 = source[index]
+		var b: Vector3 = source[index + 1]
+		var c: Vector3 = source[index + 2]
+		result[write_index] = a
+		result[write_index + 1] = b
+		result[write_index + 2] = c
+		result[write_index + 3] = a
+		result[write_index + 4] = c
+		result[write_index + 5] = b
+		write_index += 6
+	return result
+
 
 func reset_runtime() -> void:
 	for child in get_children():
