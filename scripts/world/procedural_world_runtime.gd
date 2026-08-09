@@ -6,6 +6,11 @@ const GENERATION_FORMAT_VERSION: int = 3
 const DEFAULT_WORLD_SEED: int = 8242601
 const MAX_POOLED_CHUNKS: int = 64
 const MAX_CACHED_CHUNKS: int = 96
+const CHUNK_SIZE: float = 28.0
+# Keep a full safety ring around the player. Godot still frustum-culls chunks
+# outside the camera, while collision remains ready for movement in every direction.
+const STREAMING_RADIUS_CHUNKS: int = 2
+const STREAMING_ACTIVE_CHUNK_COUNT: int = (STREAMING_RADIUS_CHUNKS * 2 + 1) * (STREAMING_RADIUS_CHUNKS * 2 + 1)
 
 var chunk_pool: Array[Node3D] = []
 var chunk_pool_root: Node3D
@@ -16,6 +21,8 @@ var configured_world_seed: int = 0
 var generation_epoch: int = 0
 var rejected_chunks: int = 0
 var fallback_chunks: int = 0
+var streamed_starting_chunk_coords: Dictionary = {}
+var last_streamed_player_chunk: Vector2i = Vector2i(2147483647, 2147483647)
 
 func _build_status_ui(_seed_value: int) -> void:
 	# Runtime generation telemetry belongs in tests/logs, not over gameplay.
@@ -35,7 +42,8 @@ func _build_starting_valley_terrain() -> void:
 	terrain_root.set_meta("world_seed", configured_world_seed)
 	terrain_root.set_meta("generation_epoch", generation_epoch)
 	world.add_child(terrain_root)
-	_build_chunks(terrain_root, "starting_valley", biome_id, REGION_CATALOG.get_center("starting_valley"), reserved_slots, -3, 3)
+	# Build the initial safety area immediately, before the player is allowed to spawn.
+	_stream_starting_valley_chunks(Vector2i.ZERO, true)
 
 func _scan_runtime_regions() -> void:
 	if world == null:
@@ -43,6 +51,7 @@ func _scan_runtime_regions() -> void:
 	_ensure_generation_context()
 	if not world.has_node("GeneratedStartingValley"):
 		_build_starting_valley_terrain()
+	_stream_starting_valley_chunks(_player_chunk_coord())
 	var active_generated: int = 1 if world.has_node("GeneratedStartingValley") else 0
 	var runtime_regions := world.get_node_or_null("RuntimeRegions") as Node3D
 	if runtime_regions != null:
@@ -71,14 +80,17 @@ func _build_region_terrain(region_node: Node3D, region_id: String) -> void:
 	region_node.add_child(terrain_root)
 	_build_chunks(terrain_root, region_id, biome_id, REGION_CATALOG.get_center(region_id), reserved_slots, -2, 2)
 
-func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_center: Vector3, reserved_slots: Array[Dictionary], min_coord: int, max_coord_exclusive: int) -> void:
+func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_center: Vector3, reserved_slots: Array[Dictionary], min_x: int, max_x_exclusive: int, min_z: int = 0, max_z_exclusive: int = 0) -> void:
+	if max_z_exclusive == 0 and min_z == 0:
+		min_z = min_x
+		max_z_exclusive = max_x_exclusive
 	if generator == null or not is_instance_valid(parent):
 		return
 	_ensure_generation_context()
 	var expected_epoch: int = generation_epoch
 	var expected_seed: int = configured_world_seed
-	for chunk_z in range(min_coord, max_coord_exclusive):
-		for chunk_x in range(min_coord, max_coord_exclusive):
+	for chunk_z in range(min_z, max_z_exclusive):
+		for chunk_x in range(min_x, max_x_exclusive):
 			if expected_epoch != generation_epoch or expected_seed != configured_world_seed:
 				return
 			var coord := Vector2i(chunk_x, chunk_z)
@@ -102,10 +114,83 @@ func _build_chunks(parent: Node3D, region_id: String, biome_id: String, region_c
 			if bool(chunk_data.get("fallback", false)):
 				fallback_chunks += 1
 			var chunk: Node3D = _acquire_chunk(parent)
+			chunk.set_meta("region_id", region_id)
+			chunk.set_meta("stream_coord", coord)
 			var build_result: Variant = chunk.call("build_from_data", chunk_data)
 			if build_result != true:
 				rejected_chunks += 1
 				_recycle_rejected_chunk(chunk)
+
+
+func _player_chunk_coord() -> Vector2i:
+	var player := get_tree().get_first_node_in_group("player") as Node3D
+	if player == null:
+		return Vector2i.ZERO
+	return Vector2i(
+		int(floor(player.global_position.x / CHUNK_SIZE)),
+		int(floor(player.global_position.z / CHUNK_SIZE))
+	)
+
+func _stream_starting_valley_chunks(player_chunk: Vector2i, force: bool = false) -> void:
+	if world == null:
+		return
+	var terrain_root := world.get_node_or_null("GeneratedStartingValley") as Node3D
+	if terrain_root == null:
+		return
+	if not force and player_chunk == last_streamed_player_chunk:
+		return
+
+	var wanted: Dictionary = {}
+	for z_offset in range(-STREAMING_RADIUS_CHUNKS, STREAMING_RADIUS_CHUNKS + 1):
+		for x_offset in range(-STREAMING_RADIUS_CHUNKS, STREAMING_RADIUS_CHUNKS + 1):
+			wanted[Vector2i(player_chunk.x + x_offset, player_chunk.y + z_offset)] = true
+
+	# Recycle chunks that are outside the safety ring before creating replacements.
+	for child in terrain_root.get_children():
+		if not child is Node3D:
+			continue
+		var chunk := child as Node3D
+		var coord_value: Variant = chunk.get_meta("stream_coord", null)
+		if coord_value is Vector2i and not wanted.has(coord_value):
+			_recycle_streamed_chunk(chunk)
+
+	var biome_id: String = REGION_CATALOG.get_biome_id("starting_valley")
+	var reserved_slots: Array[Dictionary] = REGION_CATALOG.get_slots("starting_valley")
+	for coord_value in wanted:
+		var coord := coord_value as Vector2i
+		if _has_streamed_chunk(terrain_root, coord):
+			continue
+		_build_chunks(
+			terrain_root,
+			"starting_valley",
+			biome_id,
+			REGION_CATALOG.get_center("starting_valley"),
+			reserved_slots,
+			coord.x,
+			coord.x + 1,
+			coord.y,
+			coord.y + 1
+		)
+
+	streamed_starting_chunk_coords = wanted.duplicate()
+	last_streamed_player_chunk = player_chunk
+
+func _has_streamed_chunk(terrain_root: Node3D, coord: Vector2i) -> bool:
+	for child in terrain_root.get_children():
+		if child is Node3D and child.get_meta("stream_coord", null) == coord:
+			return true
+	return false
+
+func _recycle_streamed_chunk(chunk: Node3D) -> void:
+	if not is_instance_valid(chunk):
+		return
+	_ensure_pool_root()
+	chunk.call("prepare_for_pool")
+	if chunk_pool.size() < MAX_POOLED_CHUNKS:
+		chunk.reparent(chunk_pool_root, false)
+		chunk_pool.append(chunk)
+	else:
+		chunk.free()
 
 func _valid_chunk_for_context(chunk_data: Dictionary, region_id: String, coord: Vector2i, expected_seed: int) -> bool:
 	if chunk_data.is_empty() or int(chunk_data.get("format_version", 0)) != GENERATION_FORMAT_VERSION:
@@ -273,5 +358,8 @@ func get_pool_stats() -> Dictionary:
 		"configured_world_seed": configured_world_seed,
 		"generation_epoch": generation_epoch,
 		"rejected_chunks": rejected_chunks,
-		"fallback_chunks": fallback_chunks
+		"fallback_chunks": fallback_chunks,
+		"streaming_radius_chunks": STREAMING_RADIUS_CHUNKS,
+		"active_starting_chunks": streamed_starting_chunk_coords.size(),
+		"active_starting_chunk_capacity": STREAMING_ACTIVE_CHUNK_COUNT
 	}
