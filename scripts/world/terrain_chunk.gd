@@ -51,6 +51,10 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 		material.albedo_color = Color.WHITE
 		material.roughness = 1.0
 		material.vertex_color_use_as_albedo = true
+		# Steep generated slopes can expose a triangle from below when the
+		# spring-arm camera hugs the ground. Keep terrain visually solid from
+		# both sides; collision remains the same validated mesh.
+		material.cull_mode = BaseMaterial3D.CULL_DISABLED
 		terrain_mesh.surface_set_material(0, material)
 
 		mesh_instance = MeshInstance3D.new()
