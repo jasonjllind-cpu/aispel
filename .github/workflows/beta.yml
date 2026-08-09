@@ -19,6 +19,18 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Import project resources
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout 60s godot --headless --path . --editor --quit 2>&1 | tee godot-import.log
+          errors=$(grep -E "SCRIPT ERROR:|Parse Error:|Failed to load script|Compile Error:|^ERROR:" godot-import.log | grep -v 'ERROR: Parameter "m" is null\.' || true)
+          if [ -n "$errors" ]; then
+            message=$(printf '%s' "$errors" | tr '\n' ' ' | sed 's/%/%25/g; s/\r/%0D/g')
+            echo "::error title=Godot import/script errors::$message"
+            exit 1
+          fi
+
       - name: Verify runtime performance telemetry and budgets
         shell: bash
         run: |
