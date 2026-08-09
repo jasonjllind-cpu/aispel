@@ -2,7 +2,7 @@ extends "res://scripts/world/procedural_world_system.gd"
 
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const RUNTIME_TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
-const GENERATION_FORMAT_VERSION: int = 2
+const GENERATION_FORMAT_VERSION: int = 3
 const DEFAULT_WORLD_SEED: int = 8242601
 const MAX_POOLED_CHUNKS: int = 64
 const MAX_CACHED_CHUNKS: int = 96
