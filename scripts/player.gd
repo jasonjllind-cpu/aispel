@@ -119,8 +119,11 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	elif Input.is_action_just_pressed("jump") and not inventory_open:
-		velocity.y = jump_velocity
+	else:
+		if velocity.y < 0.0:
+			velocity.y = 0.0
+		if Input.is_action_just_pressed("jump") and not inventory_open:
+			velocity.y = jump_velocity
 
 	var input_vec: Vector2 = Vector2.ZERO
 	if not inventory_open:
@@ -161,7 +164,9 @@ func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> vo
 			leg_r.rotation_degrees.x = swing * 0.75
 		if cape != null:
 			cape.rotation_degrees.x = 8.0 + abs(sin(walk_phase)) * (8.0 if sprinting else 4.0)
-		visual.position.y = abs(sin(walk_phase * 2.0)) * 0.035
+		# Limb swing communicates walking without moving the entire character
+		# vertically relative to its collider and the terrain.
+		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 12.0, 1.0))
 	else:
 		walk_phase += delta * 2.0
 		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 8.0, 1.0))
