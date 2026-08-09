@@ -214,7 +214,7 @@ func _apply_player(data: Dictionary) -> void:
 	var node3d := player as Node3D
 	var position_value: Variant = data.get("position", node3d.global_position)
 	if position_value is Vector3:
-		node3d.global_position = position_value as Vector3
+		node3d.global_position = _sanitize_restored_player_position(position_value as Vector3)
 	var rotation_value: Variant = data.get("rotation", node3d.rotation)
 	if rotation_value is Vector3:
 		node3d.rotation = rotation_value as Vector3
@@ -225,12 +225,20 @@ func _apply_player(data: Dictionary) -> void:
 	player.set("equipped_armor", str(data.get("equipped_armor", "")))
 	var spawn_value: Variant = data.get("spawn_position", node3d.global_position)
 	if spawn_value is Vector3:
-		player.set("spawn_position", spawn_value as Vector3)
+		player.set("spawn_position", _sanitize_restored_player_position(spawn_value as Vector3))
 	player.set("velocity", Vector3.ZERO)
 	if player.has_method("_update_equipment_visuals"):
 		player.call("_update_equipment_visuals")
 	if player.has_method("_refresh_hud"):
 		player.call("_refresh_hud")
+
+func _sanitize_restored_player_position(candidate: Vector3) -> Vector3:
+	if world != null and world.has_method("sanitize_outdoor_player_position"):
+		var value: Variant = world.call("sanitize_outdoor_player_position", candidate)
+		if value is Vector3:
+			return value as Vector3
+	return candidate
+
 
 func _resolve_dungeon_system() -> Node:
 	if is_instance_valid(dungeon_system):
