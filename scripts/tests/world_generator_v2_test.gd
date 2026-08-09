@@ -204,7 +204,7 @@ func _test_two_sided_terrain_collision() -> bool:
 	var body := chunk.get("static_body") as StaticBody3D
 	var collision := body.get_node_or_null("CollisionShape3D") as CollisionShape3D if body != null else null
 	var shape := collision.shape as ConcavePolygonShape3D if collision != null else null
-	if shape == null or not shape.backface_collision:
+	if shape == null or not shape.is_backface_collision_enabled():
 		chunk.free()
 		return _fail("Generated terrain collision was not two-sided")
 	chunk.free()
