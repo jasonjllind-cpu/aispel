@@ -14,7 +14,7 @@ const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 const REGION_SCAN_INTERVAL: float = 0.40
 const DISCOVERY_SCAN_INTERVAL: float = 0.20
 const JOB_BUDGET_MSEC: float = 4.0
-const GENERATION_FORMAT_VERSION: int = 2
+const GENERATION_FORMAT_VERSION: int = 3
 const DEFAULT_WORLD_SEED: int = 8242601
 
 var world: Node3D
