@@ -452,6 +452,11 @@ func _spawn_player() -> void:
 	player.name = "Player"
 	player.position = Vector3(0, 1.2, 24)
 	player.set_script(PLAYER_SCRIPT)
+	# Keep the grounded capsule attached across adjacent terrain triangles.
+	# Without snap, tiny normal changes can alternate floor/air every frame.
+	player.floor_snap_length = 0.55
+	player.floor_max_angle = deg_to_rad(60.0)
+	player.floor_stop_on_slope = true
 
 	var collision := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
