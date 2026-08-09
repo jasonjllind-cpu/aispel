@@ -17,6 +17,10 @@ var generation_epoch: int = 0
 var rejected_chunks: int = 0
 var fallback_chunks: int = 0
 
+func _build_status_ui(_seed_value: int) -> void:
+	# Runtime generation telemetry belongs in tests/logs, not over gameplay.
+	status_label = null
+
 func _build_starting_valley_terrain() -> void:
 	if world == null:
 		return
