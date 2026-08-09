@@ -492,8 +492,10 @@ func _build_player_visual(player: CharacterBody3D) -> void:
 	_mesh_box(visual, "ShoulderR", Vector3(0.34, 0.17, 0.50), Vector3(0.48, 1.55, 0), Color("4c5060"), 0.78, TEX_METAL)
 	_mesh_cylinder(visual, "ArmL", 0.78, 0.12, 0.14, Vector3(-0.48, 1.17, 0), Color("373247"), Vector3(0, 0, -6), TEX_CLOTH, 6)
 	_mesh_cylinder(visual, "ArmR", 0.78, 0.12, 0.14, Vector3(0.48, 1.17, 0), Color("373247"), Vector3(0, 0, 6), TEX_CLOTH, 6)
-	_mesh_cylinder(visual, "LegL", 0.90, 0.13, 0.15, Vector3(-0.20, 0.25, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
-	_mesh_cylinder(visual, "LegR", 0.90, 0.13, 0.15, Vector3(0.20, 0.25, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
+	# A 0.90-high leg centered at 0.45 ends exactly at local Y=0,
+	# matching the capsule's bottom instead of extending below the ground.
+	_mesh_cylinder(visual, "LegL", 0.90, 0.13, 0.15, Vector3(-0.20, 0.45, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
+	_mesh_cylinder(visual, "LegR", 0.90, 0.13, 0.15, Vector3(0.20, 0.45, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
 	_mesh_box(visual, "Cape", Vector3(0.78, 1.20, 0.07), Vector3(0, 1.08, 0.27), Color("38244d"), 1.0, TEX_CLOTH)
 	_mesh_box(visual, "Belt", Vector3(0.70, 0.12, 0.46), Vector3(0, 0.83, 0), Color("5b3b29"), 1.0, TEX_BARK)
 
