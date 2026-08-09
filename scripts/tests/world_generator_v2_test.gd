@@ -222,6 +222,14 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		if stable_position != near_surface_position:
 			runtime.free()
 			return _fail("Terrain recovery would bounce a player near the mesh surface for seed %d" % seed_value)
+		var shallow_penetration := Vector3(spawn_position.x, mesh_spawn_height - 0.5, spawn_position.z)
+		var shallow_correction: Vector3 = runtime.call("sanitize_outdoor_player_position", shallow_penetration, seed_value)
+		if bool(runtime.call("should_apply_emergency_recovery", shallow_penetration, shallow_correction)):
+			runtime.free()
+			return _fail("Terrain guard would teleport for an ordinary slope contact at seed %d" % seed_value)
+		if not bool(runtime.call("should_apply_emergency_recovery", buried_position, recovered_position)):
+			runtime.free()
+			return _fail("Terrain guard did not recognize a real fall-through at seed %d" % seed_value)
 		var valid_position := spawn_position + Vector3(0, 3.0, 0)
 		var preserved_position: Vector3 = runtime.call("sanitize_outdoor_player_position", valid_position, seed_value)
 		runtime.free()
@@ -245,26 +253,31 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 
 func _test_player_visual_ground_alignment() -> bool:
 	var runtime: Node3D = WORLD_RUNTIME_SCRIPT.new()
-	var player := CharacterBody3D.new()
-	runtime.call("_build_player_visual", player)
+	runtime.name = "PlayerGroundingTestWorld"
+	get_root().add_child(runtime)
+	runtime.call("_spawn_player")
+	var player := runtime.get_node_or_null("Player") as CharacterBody3D
+	if player == null:
+		runtime.free()
+		return _fail("Runtime did not build the player")
+	if player.floor_snap_length < 0.5 or player.floor_max_angle < deg_to_rad(55.0):
+		runtime.free()
+		return _fail("Player grounding was not configured for generated terrain")
 	var leg_left := player.get_node_or_null("Visual/LegL") as MeshInstance3D
 	var leg_right := player.get_node_or_null("Visual/LegR") as MeshInstance3D
 	if leg_left == null or leg_right == null:
-		player.free()
 		runtime.free()
 		return _fail("Player visual did not build both legs")
-	for leg in [leg_left, leg_right]:
+	for leg_value in [leg_left, leg_right]:
+		var leg := leg_value as MeshInstance3D
 		if not leg.mesh is CylinderMesh:
-			player.free()
 			runtime.free()
 			return _fail("Player leg did not use the expected cylinder mesh")
 		var leg_mesh := leg.mesh as CylinderMesh
 		var visual_bottom: float = leg.position.y - leg_mesh.height * 0.5
 		if abs(visual_bottom) > 0.001:
-			player.free()
 			runtime.free()
 			return _fail("Player model extended below its collider/ground origin")
-	player.free()
 	runtime.free()
 	return true
 
