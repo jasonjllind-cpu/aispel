@@ -185,33 +185,84 @@ func _exit_tree() -> void:
 		job_queue.call("clear")
 
 func _build_road(root: Node3D, data: Dictionary, biome: Dictionary) -> void:
-	var road_value: Variant = data.get("road", [])
-	if not road_value is Array:
+	var surface: Dictionary = build_road_surface_data(data.get("road", []))
+	if surface.is_empty():
 		return
-	var road: Array = road_value as Array
-	if road.size() < 2:
-		return
-	var material := _mat(biome.get("road_color", Color("827760")), TEX_STONE)
+	var arrays: Array = []
+	arrays.resize(Mesh.ARRAY_MAX)
+	arrays[Mesh.ARRAY_VERTEX] = surface.get("vertices", PackedVector3Array())
+	arrays[Mesh.ARRAY_NORMAL] = surface.get("normals", PackedVector3Array())
+	arrays[Mesh.ARRAY_TEX_UV] = surface.get("uvs", PackedVector2Array())
+	arrays[Mesh.ARRAY_INDEX] = surface.get("indices", PackedInt32Array())
+
+	var road_mesh := ArrayMesh.new()
+	road_mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
+	var material := _mat(biome.get("road_color", Color("827760")), null, 1.0)
+	material.cull_mode = BaseMaterial3D.CULL_DISABLED
+	road_mesh.surface_set_material(0, material)
+
 	var road_root := Node3D.new()
 	road_root.name = "GeneratedRoad"
 	root.add_child(road_root)
-	for i in range(road.size() - 1):
-		if not road[i] is Vector3 or not road[i + 1] is Vector3:
-			continue
-		var start: Vector3 = road[i]
-		var finish: Vector3 = road[i + 1]
-		var direction: Vector3 = finish - start
-		var length: float = Vector2(direction.x, direction.z).length()
-		if length <= 0.01:
-			continue
-		var mesh_instance := MeshInstance3D.new()
-		var mesh := BoxMesh.new()
-		mesh.size = Vector3(4.3, 0.09, length + 0.55)
-		mesh_instance.mesh = mesh
-		mesh_instance.material_override = material
-		mesh_instance.position = (start + finish) * 0.5 + Vector3(0, 0.02, 0)
-		mesh_instance.rotation.y = atan2(direction.x, direction.z)
-		road_root.add_child(mesh_instance)
+	var mesh_instance := MeshInstance3D.new()
+	mesh_instance.name = "RoadRibbon"
+	mesh_instance.mesh = road_mesh
+	road_root.add_child(mesh_instance)
+
+func build_road_surface_data(road_value: Variant) -> Dictionary:
+	if not road_value is Array:
+		return {}
+	var raw_road: Array = road_value as Array
+	var road: Array[Vector3] = []
+	for value in raw_road:
+		if value is Vector3 and (value as Vector3).is_finite():
+			road.append(value as Vector3)
+	if road.size() < 2:
+		return {}
+
+	var vertices := PackedVector3Array()
+	var normals := PackedVector3Array()
+	var uvs := PackedVector2Array()
+	var indices := PackedInt32Array()
+	var half_width: float = 2.15
+	var cumulative_distance: float = 0.0
+	for index in range(road.size()):
+		var point: Vector3 = road[index]
+		if index > 0:
+			cumulative_distance += Vector2(
+				point.x - road[index - 1].x,
+				point.z - road[index - 1].z
+			).length()
+		var previous: Vector3 = road[max(0, index - 1)]
+		var following: Vector3 = road[min(road.size() - 1, index + 1)]
+		var tangent := Vector3(following.x - previous.x, 0.0, following.z - previous.z)
+		if tangent.length_squared() <= 0.000001:
+			tangent = Vector3.FORWARD
+		else:
+			tangent = tangent.normalized()
+		var side := Vector3(-tangent.z, 0.0, tangent.x)
+		var lifted_point := point + Vector3(0, 0.035, 0)
+		vertices.append(lifted_point + side * half_width)
+		vertices.append(lifted_point - side * half_width)
+		normals.append(Vector3.UP)
+		normals.append(Vector3.UP)
+		uvs.append(Vector2(0.0, cumulative_distance / 4.0))
+		uvs.append(Vector2(1.0, cumulative_distance / 4.0))
+
+	for index in range(road.size() - 1):
+		var a: int = index * 2
+		var b: int = a + 1
+		var c: int = a + 2
+		var d: int = a + 3
+		indices.append_array(PackedInt32Array([a, c, b, b, c, d]))
+	return {
+		"vertices": vertices,
+		"normals": normals,
+		"uvs": uvs,
+		"indices": indices,
+		"point_count": road.size(),
+		"triangle_count": indices.size() / 3
+	}
 
 func _build_vegetation(root: Node3D, data: Dictionary, biome: Dictionary) -> void:
 	var trees_value: Variant = data.get("trees", [])
