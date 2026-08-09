@@ -6,10 +6,12 @@ const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 
 const PLAYER_SURFACE_TOLERANCE: float = 0.12
 const PLAYER_RECOVERY_CLEARANCE: float = 0.12
+const PLAYER_SPAWN_CLEARANCE: float = 0.08
 const PLAYER_RECOVERY_INTERVAL: float = 0.25
 const PLAYER_EMERGENCY_RECOVERY_DEPTH: float = 1.0
 
 var player_recovery_elapsed: float = 0.0
+var player_recovery_armed: bool = true
 var terrain_height_generator: RefCounted
 var terrain_height_seed: int = 0
 
@@ -26,9 +28,23 @@ func _ready() -> void:
 		return
 	_build_environment()
 	_build_safety_floor()
-	_spawn_player()
 	_build_retro_postprocess()
 	_build_hud()
+	call_deferred("_spawn_player_when_terrain_ready")
+
+
+func _spawn_player_when_terrain_ready() -> void:
+	var terrain_system := get_node_or_null("ProceduralWorldSystem")
+	if terrain_system != null and terrain_system.has_signal("starting_terrain_ready"):
+		var terrain_ready: bool = (
+			terrain_system.has_method("is_starting_terrain_ready")
+			and bool(terrain_system.call("is_starting_terrain_ready"))
+		)
+		if not terrain_ready:
+			await Signal(terrain_system, &"starting_terrain_ready")
+	if not has_node("Player"):
+		_spawn_player()
+
 
 func _spawn_player() -> void:
 	super._spawn_player()
@@ -57,7 +73,7 @@ func generated_player_spawn_position(seed_value: int) -> Vector3:
 	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
 	generator.call("configure", seed_value)
 	var terrain_height: float = float(generator.call(
-		"sample_height_at",
+		"sample_mesh_height_at",
 		center,
 		biome_id,
 		spawn_local,
@@ -66,7 +82,7 @@ func generated_player_spawn_position(seed_value: int) -> Vector3:
 	))
 	return Vector3(
 		center.x + spawn_local.x,
-		center.y + terrain_height + 1.2,
+		center.y + terrain_height + PLAYER_SPAWN_CLEARANCE,
 		center.z + spawn_local.y
 	)
 
@@ -147,12 +163,26 @@ func _physics_process(delta: float) -> void:
 	var player := get_node_or_null("Player") as CharacterBody3D
 	if player == null:
 		return
+	var surface: Dictionary = generated_surface_sample(player.global_position, _active_world_seed())
+	if not surface.is_empty():
+		var terrain_y: float = float(surface.get("height", player.global_position.y))
+		if player.is_on_floor() and player.global_position.y >= terrain_y - PLAYER_SURFACE_TOLERANCE:
+			player_recovery_armed = true
 	var corrected: Vector3 = sanitize_outdoor_player_position(player.global_position)
-	if not should_apply_emergency_recovery(player.global_position, corrected):
+	if not consume_emergency_recovery(player.global_position, corrected):
 		return
 	player.global_position = corrected
 	player.set("spawn_position", corrected)
 	player.set("velocity", Vector3.ZERO)
+
+
+func consume_emergency_recovery(current: Vector3, corrected: Vector3) -> bool:
+	if not player_recovery_armed or not should_apply_emergency_recovery(current, corrected):
+		return false
+	# Recovery is edge-triggered. It may fire once after a real fall-through,
+	# then stays disarmed until normal floor contact is established.
+	player_recovery_armed = false
+	return true
 
 
 func should_apply_emergency_recovery(current: Vector3, corrected: Vector3) -> bool:
