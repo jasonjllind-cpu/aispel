@@ -36,9 +36,11 @@ func consume_autosave_restore_skip() -> bool:
 	return true
 
 func sanitize_seed(seed_value: int) -> int:
-	if seed_value == 0:
-		return DEFAULT_WORLD_SEED
-	return abs(seed_value)
+	# Keep every generation layer inside the same positive 31-bit seed domain.
+	# This also handles INT64_MIN safely, where abs() cannot produce a
+	# representable positive value.
+	var normalized: int = int(seed_value & 0x7fffffff)
+	return normalized if normalized > 0 else DEFAULT_WORLD_SEED
 
 func stable_seed(scope_id: String) -> int:
 	var combined: String = "%d:%s" % [world_seed, scope_id]
