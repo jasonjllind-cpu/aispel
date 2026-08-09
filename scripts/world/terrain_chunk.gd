@@ -67,6 +67,7 @@ func build_from_data(chunk_data: Dictionary) -> bool:
 	static_body = StaticBody3D.new()
 	static_body.name = "TerrainCollision"
 	var collision := CollisionShape3D.new()
+	collision.name = "TerrainHeightmapCollision"
 	var vertices_per_side: int = int(round(sqrt(float(vertices.size()))))
 	if vertices_per_side * vertices_per_side != vertices.size() or vertices_per_side < 2:
 		build_error = "terrain_vertices_not_square"
