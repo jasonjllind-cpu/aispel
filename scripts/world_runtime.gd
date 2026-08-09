@@ -2,18 +2,22 @@ extends "res://scripts/world.gd"
 
 const RUNTIME_PERFORMANCE_MONITOR := preload("res://scripts/core/runtime_performance_monitor.gd")
 
-# Runtime boundary for the legacy hand-authored starting scene.
+# The playable client now uses the procedural systems in main.tscn as the
+# authoritative visible world. Keep only presentation, a safety floor, the
+# player and HUD from the original hand-authored prototype.
 #
-# The visual prototype in world.gd intentionally builds many PrimitiveMesh nodes.
-# Those are client presentation only and the Godot dummy renderer used by
-# headless/dedicated-server runtimes cannot consume them safely. Procedural world,
-# exploration state, collision and persistence live in separate child systems and
-# still initialise normally when this legacy presentation layer is skipped.
+# ProceduralWorldSystem creates seed-driven terrain. ProceduralExplorationSystem
+# creates the road, vegetation, POIs, encounters and loot. Avoiding
+# super._ready() prevents the old fixed map from being built on top of them.
 func _ready() -> void:
 	_install_runtime_performance_monitor()
 	if DisplayServer.get_name() == "headless":
 		return
-	super._ready()
+	_build_environment()
+	_build_ground()
+	_spawn_player()
+	_build_retro_postprocess()
+	_build_hud()
 
 func _install_runtime_performance_monitor() -> void:
 	if has_node("RuntimePerformanceMonitor"):
