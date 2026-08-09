@@ -202,8 +202,12 @@ func _test_two_sided_terrain_collision() -> bool:
 		chunk.free()
 		return _fail("Terrain chunk could not build for collision regression test")
 	var body := chunk.get("static_body") as StaticBody3D
-	var collision := body.get_node_or_null("CollisionShape3D") as CollisionShape3D if body != null else null
-	var shape := collision.shape as HeightMapShape3D if collision != null else null
+	var collision: CollisionShape3D = null
+	if body != null:
+		collision = body.get_node_or_null("CollisionShape3D") as CollisionShape3D
+	var shape: HeightMapShape3D = null
+	if collision != null and collision.shape is HeightMapShape3D:
+		shape = collision.shape as HeightMapShape3D
 	var source_vertices: PackedVector3Array = chunk_data.get("vertices", PackedVector3Array())
 	var side: int = int(round(sqrt(float(source_vertices.size()))))
 	if shape == null or shape.get_map_width() != side or shape.get_map_depth() != side:
