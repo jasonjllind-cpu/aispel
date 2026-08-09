@@ -4,8 +4,8 @@ const RUNTIME_PERFORMANCE_MONITOR := preload("res://scripts/core/runtime_perform
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 
-const PLAYER_SURFACE_TOLERANCE: float = 0.75
-const PLAYER_RECOVERY_CLEARANCE: float = 0.25
+const PLAYER_SURFACE_TOLERANCE: float = 0.12
+const PLAYER_RECOVERY_CLEARANCE: float = 0.12
 const PLAYER_RECOVERY_INTERVAL: float = 0.25
 
 var player_recovery_elapsed: float = 0.0
