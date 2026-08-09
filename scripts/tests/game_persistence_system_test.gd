@@ -22,11 +22,20 @@ class MockPlayer:
 	func _refresh_hud() -> void:
 		pass
 
+class MockTerrainWorld:
+	extends Node3D
+
+	func sanitize_outdoor_player_position(candidate: Vector3, _seed_value: int = 0) -> Vector3:
+		if candidate.y < 1.0:
+			return Vector3(candidate.x, 6.2, candidate.z)
+		return candidate
+
+
 func _init() -> void:
 	process_frame.connect(_run, CONNECT_ONE_SHOT)
 
 func _run() -> void:
-	var world := Node3D.new()
+	var world := MockTerrainWorld.new()
 	world.name = "PersistenceTestWorld"
 	get_root().add_child(world)
 
@@ -63,6 +72,12 @@ func _run() -> void:
 	persistence.set("dungeon_system", dungeon_system)
 	var service: RefCounted = persistence.get("service")
 	service.call("delete_slot", TEST_SLOT)
+	var recovered_position: Vector3 = persistence.call("_sanitize_restored_player_position", Vector3(2, -5, 3))
+	if recovered_position != Vector3(2, 6.2, 3):
+		_fail(persistence, TEST_SLOT, "Persistence did not sanitize an under-map player position")
+		dungeon_system.free()
+		persistence.free()
+		return
 
 	var expected_position: Vector3 = player.global_position
 	var expected_rotation: Vector3 = player.rotation
