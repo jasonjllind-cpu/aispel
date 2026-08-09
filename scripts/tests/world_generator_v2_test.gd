@@ -5,6 +5,8 @@ const CONTENT_GENERATOR_SCRIPT := preload("res://scripts/world/procedural_conten
 const WORLD_STATE_SCRIPT := preload("res://scripts/core/world_state.gd")
 const REGION_CATALOG := preload("res://scripts/world/region_catalog.gd")
 const JOB_QUEUE_SCRIPT := preload("res://scripts/world/generation_job_queue.gd")
+const PROCEDURAL_EXPLORATION_SCRIPT := preload("res://scripts/world/procedural_exploration_system.gd")
+const LEGACY_EXPLORATION_RUNTIME := preload("res://scripts/exploration_runtime.gd")
 
 const TEST_SEEDS: Array[int] = [1001, 40777, 91082601, 2147483000]
 const TEST_CHUNKS: Array[Vector2i] = [
@@ -14,6 +16,15 @@ const TEST_CHUNKS: Array[Vector2i] = [
 	Vector2i(2, 1)
 ]
 const SAMPLE_POINTS: Array[Vector2] = [
+	# Spawn-visible samples make the test fail if only the distant world changes.
+	Vector2(-28, 46),
+	Vector2(28, 46),
+	Vector2(-22, 30),
+	Vector2(22, 30),
+	Vector2(-24, 8),
+	Vector2(24, 8),
+	Vector2(-32, -8),
+	Vector2(32, -8),
 	Vector2(-78, 68),
 	Vector2(-72, 18),
 	Vector2(-54, 54),
@@ -37,13 +48,17 @@ func _run() -> void:
 		return
 	if not _test_chunk_seams_and_safe_slots():
 		return
+	if not _test_road_ribbon_surface():
+		return
+	if not _test_legacy_overlay_disabled():
+		return
 	if not _test_validator_rejections():
 		return
 	if not _test_extreme_seed_sanitization():
 		return
 	if not _test_job_queue_cancellation():
 		return
-	print("WORLD_GENERATOR_V2_OK seeds=%d chunks=%d deterministic=true distinct=true validated=true" % [
+	print("WORLD_GENERATOR_V3_OK seeds=%d chunks=%d deterministic=true visually_distinct=true legacy_overlay=false" % [
 		TEST_SEEDS.size(),
 		TEST_CHUNKS.size()
 	])
@@ -65,8 +80,12 @@ func _test_seed_determinism_and_difference() -> bool:
 		var generator_b: RefCounted = WORLD_GENERATOR_SCRIPT.new()
 		generator_a.call("configure", seed_value)
 		generator_b.call("configure", seed_value)
-		if generator_a.call("generation_profile") != generator_b.call("generation_profile"):
+		var profile_a: Dictionary = generator_a.call("generation_profile")
+		var profile_b: Dictionary = generator_b.call("generation_profile")
+		if profile_a != profile_b:
 			return _fail("Terrain profile changed between identical seed runs: %d" % seed_value)
+		if int(profile_a.get("format_version", 0)) != 3 or str(profile_a.get("terrain_style", "")).is_empty():
+			return _fail("Seed %d did not produce a named v3 visual terrain style" % seed_value)
 
 		for coord in TEST_CHUNKS:
 			var chunk_a: Dictionary = generator_a.call("generate_chunk_data", "starting_valley", biome_id, center, coord, slots)
@@ -118,7 +137,7 @@ func _test_seed_determinism_and_difference() -> bool:
 			reference_route = route_a
 			reference_content = content_a
 		else:
-			if _height_delta(reference_heights, heights) < 1.0:
+			if _height_delta(reference_heights, heights) < 4.0:
 				return _fail("Seed %d did not materially change terrain heights" % seed_value)
 			if not _route_differs(reference_route, route_a, 0.35):
 				return _fail("Seed %d did not materially change the road layout" % seed_value)
@@ -144,6 +163,45 @@ func _test_chunk_seams_and_safe_slots() -> bool:
 			var actual_height: float = float(generator.call("sample_height_at", center, biome_id, slot_center, slots, "starting_valley"))
 			if abs(actual_height - target_height) > 0.025:
 				return _fail("Reserved slot %s was not safely flattened for seed %d" % [str(slot.get("id", "")), seed_value])
+	return true
+
+func _test_road_ribbon_surface() -> bool:
+	var region: Dictionary = REGION_CATALOG.get_region("starting_valley")
+	var generator: RefCounted = WORLD_GENERATOR_SCRIPT.new()
+	generator.call("configure", TEST_SEEDS[0])
+	var route: Array[Vector3] = generator.call(
+		"primary_route_points",
+		"starting_valley",
+		region.get("center", Vector3.ZERO),
+		str(region.get("biome", "green_highlands")),
+		REGION_CATALOG.get_slots("starting_valley")
+	)
+	var exploration: Node = PROCEDURAL_EXPLORATION_SCRIPT.new()
+	var surface: Dictionary = exploration.call("build_road_surface_data", route)
+	exploration.free()
+	var vertices: PackedVector3Array = surface.get("vertices", PackedVector3Array())
+	var normals: PackedVector3Array = surface.get("normals", PackedVector3Array())
+	var uvs: PackedVector2Array = surface.get("uvs", PackedVector2Array())
+	var indices: PackedInt32Array = surface.get("indices", PackedInt32Array())
+	if vertices.size() != route.size() * 2 or normals.size() != vertices.size() or uvs.size() != vertices.size():
+		return _fail("Road ribbon surface arrays did not match the route")
+	if indices.size() != (route.size() - 1) * 6:
+		return _fail("Road ribbon did not contain exactly two triangles per segment")
+	for index in range(route.size()):
+		var width: float = vertices[index * 2].distance_to(vertices[index * 2 + 1])
+		if abs(width - 4.3) > 0.01:
+			return _fail("Road ribbon width was not stable")
+	for vertex_index in indices:
+		if vertex_index < 0 or vertex_index >= vertices.size():
+			return _fail("Road ribbon contained an out-of-bounds index")
+	return true
+
+func _test_legacy_overlay_disabled() -> bool:
+	var legacy_runtime: Node = LEGACY_EXPLORATION_RUNTIME.new()
+	var enabled: bool = bool(legacy_runtime.get("legacy_presentation_enabled"))
+	legacy_runtime.free()
+	if enabled:
+		return _fail("Fixed prototype exploration presentation was still enabled")
 	return true
 
 func _test_validator_rejections() -> bool:
@@ -315,11 +373,14 @@ func _matching_x_seam(left: Dictionary, right: Dictionary) -> bool:
 	var right_vertices: PackedVector3Array = right.get("vertices", PackedVector3Array())
 	var left_normals: PackedVector3Array = left.get("normals", PackedVector3Array())
 	var right_normals: PackedVector3Array = right.get("normals", PackedVector3Array())
-	if left_vertices.size() != 81 or right_vertices.size() != 81:
+	if left_vertices.size() != right_vertices.size() or left_vertices.is_empty():
 		return false
-	for row in range(9):
-		var left_index: int = row * 9 + 8
-		var right_index: int = row * 9
+	var side: int = int(round(sqrt(float(left_vertices.size()))))
+	if side * side != left_vertices.size():
+		return false
+	for row in range(side):
+		var left_index: int = row * side + side - 1
+		var right_index: int = row * side
 		if left_vertices[left_index].distance_to(right_vertices[right_index]) > EPSILON:
 			return false
 		if left_normals[left_index].distance_to(right_normals[right_index]) > EPSILON:
@@ -377,6 +438,6 @@ func _geometry_fingerprint(heights: PackedFloat32Array, route: Array[Vector3], c
 	return fingerprint
 
 func _fail(message: String) -> bool:
-	printerr("WORLD_GENERATOR_V2_FAILED: %s" % message)
+	printerr("WORLD_GENERATOR_V3_FAILED: %s" % message)
 	quit(1)
 	return false
