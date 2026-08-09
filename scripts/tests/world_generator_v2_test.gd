@@ -208,16 +208,29 @@ func _test_spawn_grade_and_runtime_alignment() -> bool:
 		if abs(spawn_position.y - (spawn_height + 1.2)) > 0.025:
 			runtime.free()
 			return _fail("Player spawn did not follow generated terrain for seed %d" % seed_value)
+		var mesh_spawn_height: float = float(generator.call("sample_mesh_height_at", center, biome_id, spawn_local, slots, "starting_valley"))
 		var buried_position := Vector3(spawn_position.x, -2.0, spawn_position.z)
 		var recovered_position: Vector3 = runtime.call("sanitize_outdoor_player_position", buried_position, seed_value)
-		if recovered_position.distance_to(spawn_position) > 0.025:
+		var expected_recovery := Vector3(spawn_position.x, mesh_spawn_height + 0.25, spawn_position.z)
+		if recovered_position.distance_to(expected_recovery) > 0.025:
 			runtime.free()
-			return _fail("Under-map recovery did not return to generated terrain for seed %d" % seed_value)
+			return _fail("Under-map recovery did not return to generated mesh terrain for seed %d" % seed_value)
+		var near_surface_position := Vector3(spawn_position.x, mesh_spawn_height - 0.5, spawn_position.z)
+		var stable_position: Vector3 = runtime.call("sanitize_outdoor_player_position", near_surface_position, seed_value)
+		if stable_position != near_surface_position:
+			runtime.free()
+			return _fail("Terrain recovery would bounce a player near the mesh surface for seed %d" % seed_value)
 		var valid_position := spawn_position + Vector3(0, 3.0, 0)
 		var preserved_position: Vector3 = runtime.call("sanitize_outdoor_player_position", valid_position, seed_value)
 		runtime.free()
 		if preserved_position != valid_position:
 			return _fail("Terrain recovery moved an already-safe player for seed %d" % seed_value)
+		var probe_point := Vector2(7.1, 17.3)
+		var probe_chunk: Dictionary = generator.call("generate_chunk_data", "starting_valley", biome_id, center, Vector2i.ZERO, slots)
+		var sampled_mesh_height: float = float(generator.call("sample_mesh_height_at", center, biome_id, probe_point, slots, "starting_valley"))
+		var interpolated_mesh_height: float = _interpolated_chunk_surface_height(probe_chunk, probe_point)
+		if abs(sampled_mesh_height - interpolated_mesh_height) > 0.0001:
+			return _fail("Recovery surface did not match rendered terrain triangles for seed %d" % seed_value)
 		for direction in directions:
 			var previous_height: float = spawn_height
 			for step_index in range(1, 11):
@@ -468,6 +481,29 @@ func _matching_x_seam(left: Dictionary, right: Dictionary) -> bool:
 		if left_normals[left_index].distance_to(right_normals[right_index]) > EPSILON:
 			return false
 	return true
+
+func _interpolated_chunk_surface_height(chunk: Dictionary, local_position: Vector2) -> float:
+	var vertices: PackedVector3Array = chunk.get("vertices", PackedVector3Array())
+	var side: int = int(round(sqrt(float(vertices.size()))))
+	if side < 2 or side * side != vertices.size():
+		return INF
+	var origin := Vector2(vertices[0].x, vertices[0].z)
+	var step: float = vertices[1].x - vertices[0].x
+	if step <= 0.0:
+		return INF
+	var cell_x: int = clampi(int(floor((local_position.x - origin.x) / step)), 0, side - 2)
+	var cell_z: int = clampi(int(floor((local_position.y - origin.y) / step)), 0, side - 2)
+	var base_index: int = cell_z * side + cell_x
+	var a: Vector3 = vertices[base_index]
+	var b: Vector3 = vertices[base_index + 1]
+	var c: Vector3 = vertices[base_index + side]
+	var d: Vector3 = vertices[base_index + side + 1]
+	var u: float = clamp((local_position.x - a.x) / step, 0.0, 1.0)
+	var v: float = clamp((local_position.y - a.z) / step, 0.0, 1.0)
+	if u + v <= 1.0:
+		return a.y + (b.y - a.y) * u + (c.y - a.y) * v
+	return b.y * (1.0 - v) + c.y * (1.0 - u) + d.y * (u + v - 1.0)
+
 
 func _height_range(values: PackedFloat32Array) -> float:
 	if values.is_empty():
