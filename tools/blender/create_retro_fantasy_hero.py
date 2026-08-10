@@ -215,6 +215,7 @@ def create_hero(hero_root, collection, materials):
         x = 0.405 * sign
         part(add_uv_sphere("Shoulder_" + side, (x, 0, 1.42), (0.17, 0.17, 0.18), cloth))
         part(add_box("UpperArm_" + side, (x, 0, 1.20), (0.135, 0.145, 0.255), cloth, 0.035))
+        part(add_uv_sphere("ElbowJoint_" + side, (x, -0.002, 1.01), (0.14, 0.145, 0.14), dark))
         part(add_box("Forearm_" + side, (x, -0.005, 0.91), (0.125, 0.135, 0.20), dark, 0.03))
         part(add_uv_sphere("Hand_" + side, (x, -0.01, 0.73), (0.13, 0.125, 0.14), skin))
 
@@ -222,6 +223,7 @@ def create_hero(hero_root, collection, materials):
     for side, sign in (("L", 1), ("R", -1)):
         x = 0.155 * sign
         part(add_box("UpperLeg_" + side, (x, 0, 0.66), (0.145, 0.16, 0.27), dark, 0.03))
+        part(add_uv_sphere("KneeJoint_" + side, (x, 0, 0.53), (0.15, 0.16, 0.15), dark))
         part(add_box("LowerLeg_" + side, (x, 0, 0.34), (0.13, 0.145, 0.22), dark, 0.03))
         part(add_box("Boot_" + side, (x, -0.075, 0.105), (0.17, 0.235, 0.13), leather, 0.035))
 
@@ -265,10 +267,10 @@ def create_hero(hero_root, collection, materials):
         "Forearm_R", "Hand_R", "SwordGrip", "SwordGuard", "SwordBlade", "SwordTip"
     ])
     pivot("HeroArmPivotL", (0.405, 0, 1.43), [
-        "UpperArm_L", "HeroElbowPivotL"
+        "UpperArm_L", "ElbowJoint_L", "HeroElbowPivotL"
     ])
     pivot("HeroArmPivotR", (-0.405, 0, 1.43), [
-        "UpperArm_R", "HeroElbowPivotR"
+        "UpperArm_R", "ElbowJoint_R", "HeroElbowPivotR"
     ])
 
     pivot("HeroKneePivotL", (0.155, 0, 0.53), [
@@ -278,10 +280,10 @@ def create_hero(hero_root, collection, materials):
         "LowerLeg_R", "Boot_R"
     ])
     pivot("HeroLegPivotL", (0.155, 0, 0.86), [
-        "UpperLeg_L", "HeroKneePivotL"
+        "UpperLeg_L", "KneeJoint_L", "HeroKneePivotL"
     ])
     pivot("HeroLegPivotR", (-0.155, 0, 0.86), [
-        "UpperLeg_R", "HeroKneePivotR"
+        "UpperLeg_R", "KneeJoint_R", "HeroKneePivotR"
     ])
 
     pivot("HeroHeadPivot", (0, 0, 1.55), [
