@@ -23,6 +23,14 @@ var walk_phase := 0.0
 var camera_pivot: Node3D
 var camera: Camera3D
 var visual: Node3D
+var generated_hero: Node3D
+var generated_arm_l: Node3D
+var generated_arm_r: Node3D
+var generated_leg_l: Node3D
+var generated_leg_r: Node3D
+var generated_head: Node3D
+var generated_cape: Node3D
+var generated_attack_active: bool = false
 var spawn_position := Vector3.ZERO
 
 var inventory: Dictionary = {"Rusty Sword": 1}
@@ -73,6 +81,13 @@ func _install_generated_hero_model() -> void:
 	hero.name = "GeneratedRetroFantasyHero"
 	hero.scale = Vector3.ONE
 	visual.add_child(hero)
+	generated_hero = hero
+	generated_arm_l = hero.find_child("HeroArmPivotL", true, false) as Node3D
+	generated_arm_r = hero.find_child("HeroArmPivotR", true, false) as Node3D
+	generated_leg_l = hero.find_child("HeroLegPivotL", true, false) as Node3D
+	generated_leg_r = hero.find_child("HeroLegPivotR", true, false) as Node3D
+	generated_head = hero.find_child("HeroHeadPivot", true, false) as Node3D
+	generated_cape = hero.find_child("HeroCapePivot", true, false) as Node3D
 
 func _build_player_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -170,8 +185,57 @@ func _physics_process(delta: float) -> void:
 	_animate_visual(delta, input_vec.length(), sprinting)
 	_update_interaction_prompt()
 
+func _animate_generated_hero(delta: float, input_strength: float, sprinting: bool) -> void:
+	var blend: float = min(delta * 12.0, 1.0)
+	visual.position.y = lerp(visual.position.y, visual_ground_clearance, blend)
+
+	if not is_on_floor():
+		var fall_tilt: float = -10.0 if velocity.y > 0.0 else 12.0
+		_set_pivot_x(generated_leg_l, -18.0, blend)
+		_set_pivot_x(generated_leg_r, 18.0, blend)
+		_set_pivot_x(generated_arm_l, fall_tilt, blend)
+		if not generated_attack_active:
+			_set_pivot_x(generated_arm_r, fall_tilt, blend)
+		_set_pivot_x(generated_cape, 22.0, blend)
+		_set_pivot_z(generated_head, 0.0, blend)
+		return
+
+	if input_strength > 0.05:
+		walk_phase += delta * (12.5 if sprinting else 8.5)
+		var stride: float = 38.0 if sprinting else 26.0
+		var arm_stride: float = 32.0 if sprinting else 22.0
+		var wave: float = sin(walk_phase)
+		_set_pivot_x(generated_leg_l, -wave * stride, blend)
+		_set_pivot_x(generated_leg_r, wave * stride, blend)
+		_set_pivot_x(generated_arm_l, wave * arm_stride, blend)
+		if not generated_attack_active:
+			_set_pivot_x(generated_arm_r, -wave * arm_stride, blend)
+		_set_pivot_z(generated_head, -wave * 1.5, blend)
+		_set_pivot_x(generated_cape, 10.0 + abs(wave) * (13.0 if sprinting else 7.0), blend)
+	else:
+		walk_phase += delta * 2.1
+		var breath: float = sin(walk_phase) * 1.8
+		_set_pivot_x(generated_leg_l, 0.0, blend)
+		_set_pivot_x(generated_leg_r, 0.0, blend)
+		_set_pivot_x(generated_arm_l, breath, blend)
+		if not generated_attack_active:
+			_set_pivot_x(generated_arm_r, -breath, blend)
+		_set_pivot_z(generated_head, sin(walk_phase * 0.55) * 1.1, blend)
+		_set_pivot_x(generated_cape, 5.0 + abs(breath), blend)
+
+func _set_pivot_x(pivot: Node3D, degrees: float, blend: float) -> void:
+	if pivot != null:
+		pivot.rotation_degrees.x = lerp(pivot.rotation_degrees.x, degrees, blend)
+
+func _set_pivot_z(pivot: Node3D, degrees: float, blend: float) -> void:
+	if pivot != null:
+		pivot.rotation_degrees.z = lerp(pivot.rotation_degrees.z, degrees, blend)
+
 func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> void:
 	if visual == null:
+		return
+	if generated_hero != null:
+		_animate_generated_hero(delta, input_strength, sprinting)
 		return
 	var arm_l := get_node_or_null("Visual/ArmL") as Node3D
 	var arm_r := get_node_or_null("Visual/ArmR") as Node3D
@@ -268,6 +332,14 @@ func _try_attack() -> void:
 		_set_status("Hit for %d" % attack_damage)
 
 func _play_attack_animation() -> void:
+	if generated_arm_r != null:
+		generated_attack_active = true
+		generated_arm_r.rotation_degrees = Vector3(-52.0, 0.0, -24.0)
+		var generated_tween := create_tween()
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(42.0, 0.0, 34.0), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3.ZERO, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		generated_tween.finished.connect(_finish_generated_attack)
+		return
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
 	if pivot == null:
 		return
@@ -275,6 +347,9 @@ func _play_attack_animation() -> void:
 	var tween := create_tween()
 	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -115), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -25), 0.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+func _finish_generated_attack() -> void:
+	generated_attack_active = false
 
 func _get_attack_damage() -> int:
 	return max(8, ITEM_DB.get_damage(equipped_weapon))
