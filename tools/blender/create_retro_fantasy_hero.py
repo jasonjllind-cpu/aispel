@@ -225,13 +225,13 @@ def create_hero(hero_root, collection, materials):
         part(add_box("LowerLeg_" + side, (x, 0, 0.34), (0.13, 0.145, 0.22), dark, 0.03))
         part(add_box("Boot_" + side, (x, -0.075, 0.105), (0.17, 0.235, 0.13), leather, 0.035))
 
-    # The sword grip passes through the right hand. Guard and blade touch the
-    # grip, creating one believable held weapon instead of floating pieces.
+    # The sword grip passes through the right hand. The guard sits above the
+    # fist and the blade points upward in the neutral pose.
     sword_x = -0.405
-    part(add_box("SwordGrip", (sword_x, -0.015, 0.68), (0.045, 0.045, 0.18), leather, 0.012))
-    part(add_box("SwordGuard", (sword_x, -0.015, 0.55), (0.19, 0.055, 0.04), metal, 0.012))
-    part(add_box("SwordBlade", (sword_x, -0.015, 0.25), (0.052, 0.035, 0.30), metal, 0.012))
-    part(add_cone("SwordTip", (sword_x, -0.015, -0.025), 0.052, 0.0, 0.18, metal, 4))
+    part(add_box("SwordGrip", (sword_x, -0.015, 0.76), (0.045, 0.045, 0.18), leather, 0.012))
+    part(add_box("SwordGuard", (sword_x, -0.015, 0.94), (0.19, 0.055, 0.04), metal, 0.012))
+    part(add_box("SwordBlade", (sword_x, -0.015, 1.28), (0.052, 0.035, 0.34), metal, 0.012))
+    part(add_cone("SwordTip", (sword_x, -0.015, 1.69), 0.052, 0.0, 0.14, metal, 4))
 
     # Small equipment details add scale without losing the retro low-poly look.
     part(add_box("LeftPouch", (0.28, -0.22, 0.87), (0.105, 0.075, 0.13), leather, 0.025))
