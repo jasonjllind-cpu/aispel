@@ -26,8 +26,13 @@ var visual: Node3D
 var generated_hero: Node3D
 var generated_arm_l: Node3D
 var generated_arm_r: Node3D
+var generated_elbow_l: Node3D
+var generated_elbow_r: Node3D
 var generated_leg_l: Node3D
 var generated_leg_r: Node3D
+var generated_knee_l: Node3D
+var generated_knee_r: Node3D
+var generated_body: Node3D
 var generated_head: Node3D
 var generated_cape: Node3D
 var generated_attack_active: bool = false
@@ -84,8 +89,13 @@ func _install_generated_hero_model() -> void:
 	generated_hero = hero
 	generated_arm_l = hero.find_child("HeroArmPivotL", true, false) as Node3D
 	generated_arm_r = hero.find_child("HeroArmPivotR", true, false) as Node3D
+	generated_elbow_l = hero.find_child("HeroElbowPivotL", true, false) as Node3D
+	generated_elbow_r = hero.find_child("HeroElbowPivotR", true, false) as Node3D
 	generated_leg_l = hero.find_child("HeroLegPivotL", true, false) as Node3D
 	generated_leg_r = hero.find_child("HeroLegPivotR", true, false) as Node3D
+	generated_knee_l = hero.find_child("HeroKneePivotL", true, false) as Node3D
+	generated_knee_r = hero.find_child("HeroKneePivotR", true, false) as Node3D
+	generated_body = hero.find_child("HeroBodyPivot", true, false) as Node3D
 	generated_head = hero.find_child("HeroHeadPivot", true, false) as Node3D
 	generated_cape = hero.find_child("HeroCapePivot", true, false) as Node3D
 
@@ -191,37 +201,70 @@ func _animate_generated_hero(delta: float, input_strength: float, sprinting: boo
 
 	if not is_on_floor():
 		var fall_tilt: float = -10.0 if velocity.y > 0.0 else 12.0
+		_set_pivot_x(generated_body, -3.0 if velocity.y > 0.0 else 5.0, blend)
 		_set_pivot_x(generated_leg_l, -18.0, blend)
 		_set_pivot_x(generated_leg_r, 18.0, blend)
+		_set_pivot_x(generated_knee_l, 24.0, blend)
+		_set_pivot_x(generated_knee_r, 24.0, blend)
 		_set_pivot_x(generated_arm_l, fall_tilt, blend)
+		_set_pivot_x(generated_elbow_l, -18.0, blend)
 		if not generated_attack_active:
 			_set_pivot_x(generated_arm_r, fall_tilt, blend)
+			_set_pivot_x(generated_elbow_r, -18.0, blend)
 		_set_pivot_x(generated_cape, 22.0, blend)
 		_set_pivot_z(generated_head, 0.0, blend)
 		return
 
 	if input_strength > 0.05:
-		walk_phase += delta * (12.5 if sprinting else 8.5)
-		var stride: float = 38.0 if sprinting else 26.0
-		var arm_stride: float = 32.0 if sprinting else 22.0
+		walk_phase += delta * (12.8 if sprinting else 8.2)
 		var wave: float = sin(walk_phase)
-		_set_pivot_x(generated_leg_l, -wave * stride, blend)
-		_set_pivot_x(generated_leg_r, wave * stride, blend)
-		_set_pivot_x(generated_arm_l, wave * arm_stride, blend)
-		if not generated_attack_active:
-			_set_pivot_x(generated_arm_r, -wave * arm_stride, blend)
-		_set_pivot_z(generated_head, -wave * 1.5, blend)
-		_set_pivot_x(generated_cape, 10.0 + abs(wave) * (13.0 if sprinting else 7.0), blend)
+		if sprinting:
+			# Running is a separate pose: forward lean, bent elbows, high knees
+			# and a much wider stride instead of a sped-up walk cycle.
+			_set_pivot_x(generated_body, -11.0, blend)
+			_set_pivot_z(generated_body, wave * 2.2, blend)
+			_set_pivot_x(generated_leg_l, -wave * 48.0, blend)
+			_set_pivot_x(generated_leg_r, wave * 48.0, blend)
+			_set_pivot_x(generated_knee_l, max(0.0, wave) * 42.0 + 8.0, blend)
+			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 42.0 + 8.0, blend)
+			_set_pivot_x(generated_arm_l, wave * 43.0, blend)
+			_set_pivot_x(generated_elbow_l, -62.0, blend)
+			if not generated_attack_active:
+				_set_pivot_x(generated_arm_r, -wave * 43.0, blend)
+				_set_pivot_x(generated_elbow_r, -62.0, blend)
+			_set_pivot_z(generated_head, -wave * 2.0, blend)
+			_set_pivot_x(generated_cape, 22.0 + abs(wave) * 16.0, blend)
+		else:
+			_set_pivot_x(generated_body, 0.0, blend)
+			_set_pivot_z(generated_body, wave * 1.1, blend)
+			_set_pivot_x(generated_leg_l, -wave * 25.0, blend)
+			_set_pivot_x(generated_leg_r, wave * 25.0, blend)
+			_set_pivot_x(generated_knee_l, max(0.0, wave) * 12.0, blend)
+			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 12.0, blend)
+			_set_pivot_x(generated_arm_l, wave * 20.0, blend)
+			_set_pivot_x(generated_elbow_l, -8.0, blend)
+			if not generated_attack_active:
+				_set_pivot_x(generated_arm_r, -wave * 20.0, blend)
+				_set_pivot_x(generated_elbow_r, -8.0, blend)
+			_set_pivot_z(generated_head, -wave * 1.0, blend)
+			_set_pivot_x(generated_cape, 8.0 + abs(wave) * 7.0, blend)
 	else:
 		walk_phase += delta * 2.1
 		var breath: float = sin(walk_phase) * 1.8
+		_set_pivot_x(generated_body, breath * 0.3, blend)
+		_set_pivot_z(generated_body, 0.0, blend)
 		_set_pivot_x(generated_leg_l, 0.0, blend)
 		_set_pivot_x(generated_leg_r, 0.0, blend)
+		_set_pivot_x(generated_knee_l, 0.0, blend)
+		_set_pivot_x(generated_knee_r, 0.0, blend)
 		_set_pivot_x(generated_arm_l, breath, blend)
+		_set_pivot_x(generated_elbow_l, -5.0, blend)
 		if not generated_attack_active:
 			_set_pivot_x(generated_arm_r, -breath, blend)
+			_set_pivot_x(generated_elbow_r, -5.0, blend)
 		_set_pivot_z(generated_head, sin(walk_phase * 0.55) * 1.1, blend)
 		_set_pivot_x(generated_cape, 5.0 + abs(breath), blend)
+
 
 func _set_pivot_x(pivot: Node3D, degrees: float, blend: float) -> void:
 	if pivot != null:
