@@ -221,19 +221,19 @@ func _animate_generated_hero(delta: float, input_strength: float, sprinting: boo
 		if sprinting:
 			# Running is a separate pose: forward lean, bent elbows, high knees
 			# and a much wider stride instead of a sped-up walk cycle.
-			_set_pivot_x(generated_body, -11.0, blend)
-			_set_pivot_z(generated_body, wave * 2.2, blend)
-			_set_pivot_x(generated_leg_l, -wave * 48.0, blend)
-			_set_pivot_x(generated_leg_r, wave * 48.0, blend)
-			_set_pivot_x(generated_knee_l, max(0.0, wave) * 42.0 + 8.0, blend)
-			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 42.0 + 8.0, blend)
-			_set_pivot_x(generated_arm_l, wave * 43.0, blend)
-			_set_pivot_x(generated_elbow_l, -62.0, blend)
+			_set_pivot_x(generated_body, -5.0, blend)
+			_set_pivot_z(generated_body, wave * 1.4, blend)
+			_set_pivot_x(generated_leg_l, -wave * 30.0, blend)
+			_set_pivot_x(generated_leg_r, wave * 30.0, blend)
+			_set_pivot_x(generated_knee_l, max(0.0, wave) * 18.0 + 4.0, blend)
+			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 18.0 + 4.0, blend)
+			_set_pivot_x(generated_arm_l, wave * 24.0, blend)
+			_set_pivot_x(generated_elbow_l, -26.0, blend)
 			if not generated_attack_active:
-				_set_pivot_x(generated_arm_r, -wave * 43.0, blend)
-				_set_pivot_x(generated_elbow_r, -62.0, blend)
+				_set_pivot_x(generated_arm_r, -wave * 24.0, blend)
+				_set_pivot_x(generated_elbow_r, -26.0, blend)
 			_set_pivot_z(generated_head, -wave * 2.0, blend)
-			_set_pivot_x(generated_cape, 22.0 + abs(wave) * 16.0, blend)
+			_set_pivot_x(generated_cape, 15.0 + abs(wave) * 9.0, blend)
 		else:
 			_set_pivot_x(generated_body, 0.0, blend)
 			_set_pivot_z(generated_body, wave * 1.1, blend)
@@ -377,22 +377,22 @@ func _try_attack() -> void:
 func _play_attack_animation() -> void:
 	if generated_arm_r != null:
 		generated_attack_active = true
-		# Wind up behind the shoulder with a tightly bent elbow.
-		generated_arm_r.rotation_degrees = Vector3(48.0, -12.0, 35.0)
+		# Blender's +Y becomes Godot's local -Z. The earlier cut used the
+		# inverse X direction and visibly swung behind the character.
+		generated_arm_r.rotation_degrees = Vector3(-36.0, 6.0, -20.0)
 		if generated_elbow_r != null:
-			generated_elbow_r.rotation_degrees = Vector3(-95.0, 0.0, 0.0)
+			generated_elbow_r.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
 		var generated_tween := create_tween()
-		# Fast diagonal cut toward the space in front of the player.
-		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(-92.0, 8.0, -42.0), 0.14).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		# Extend the blade into the forward hit arc.
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(72.0, -4.0, 26.0), 0.16).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
 		if generated_elbow_r != null:
-			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-10.0, 0.0, 0.0), 0.14).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
-		# Follow-through gives the blade weight instead of snapping straight back.
-		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(-112.0, 0.0, -18.0), 0.10).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-12.0, 0.0, 0.0), 0.16).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(88.0, 0.0, 12.0), 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		if generated_elbow_r != null:
-			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.10)
-		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3.ZERO, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-6.0, 0.0, 0.0), 0.09)
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3.ZERO, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
 		if generated_elbow_r != null:
-			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.24)
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.25)
 		generated_tween.finished.connect(_finish_generated_attack)
 		return
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
