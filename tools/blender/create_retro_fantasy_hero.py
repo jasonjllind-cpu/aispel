@@ -241,6 +241,7 @@ def create_hero(hero_root, collection, materials):
     # nodes from the player's real movement state, keeping animation responsive
     # while every mesh stays attached to its anatomical joint.
     by_name = {obj.name: obj for obj in parts}
+    pivot_nodes = {}
 
     def pivot(name, location, member_names):
         node = bpy.data.objects.new(name, None)
@@ -249,29 +250,50 @@ def create_hero(hero_root, collection, materials):
         node.location = location
         collection.objects.link(node)
         parent_to_hero_root(node, hero_root)
+        pivot_nodes[name] = node
         for member_name in member_names:
-            member = by_name.get(member_name)
+            member = by_name.get(member_name) or pivot_nodes.get(member_name)
             if member is not None:
                 parent_to_hero_root(member, node)
         return node
 
+    # Secondary joints first, then their parent limbs.
+    pivot("HeroElbowPivotL", (0.405, 0, 1.02), [
+        "Forearm_L", "Hand_L"
+    ])
+    pivot("HeroElbowPivotR", (-0.405, 0, 1.02), [
+        "Forearm_R", "Hand_R", "SwordGrip", "SwordGuard", "SwordBlade", "SwordTip"
+    ])
     pivot("HeroArmPivotL", (0.405, 0, 1.43), [
-        "UpperArm_L", "Forearm_L", "Hand_L"
+        "UpperArm_L", "HeroElbowPivotL"
     ])
     pivot("HeroArmPivotR", (-0.405, 0, 1.43), [
-        "UpperArm_R", "Forearm_R", "Hand_R",
-        "SwordGrip", "SwordGuard", "SwordBlade", "SwordTip"
+        "UpperArm_R", "HeroElbowPivotR"
+    ])
+
+    pivot("HeroKneePivotL", (0.155, 0, 0.53), [
+        "LowerLeg_L", "Boot_L"
+    ])
+    pivot("HeroKneePivotR", (-0.155, 0, 0.53), [
+        "LowerLeg_R", "Boot_R"
     ])
     pivot("HeroLegPivotL", (0.155, 0, 0.86), [
-        "UpperLeg_L", "LowerLeg_L", "Boot_L"
+        "UpperLeg_L", "HeroKneePivotL"
     ])
     pivot("HeroLegPivotR", (-0.155, 0, 0.86), [
-        "UpperLeg_R", "LowerLeg_R", "Boot_R"
+        "UpperLeg_R", "HeroKneePivotR"
     ])
+
     pivot("HeroHeadPivot", (0, 0, 1.55), [
         "Head", "FaceShadow", "Hood"
     ])
     pivot("HeroCapePivot", (0, 0.16, 1.48), ["Cape"])
+    pivot("HeroBodyPivot", (0, 0, 0.88), [
+        "Tunic", "ShoulderBridge", "Belt", "BeltBuckle",
+        "Shoulder_L", "Shoulder_R", "HoodCollar",
+        "LeftPouch", "RightPouch",
+        "HeroArmPivotL", "HeroArmPivotR", "HeroHeadPivot", "HeroCapePivot"
+    ])
 
     return parts
 
