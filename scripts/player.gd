@@ -377,10 +377,22 @@ func _try_attack() -> void:
 func _play_attack_animation() -> void:
 	if generated_arm_r != null:
 		generated_attack_active = true
-		generated_arm_r.rotation_degrees = Vector3(-52.0, 0.0, -24.0)
+		# Wind up behind the shoulder with a tightly bent elbow.
+		generated_arm_r.rotation_degrees = Vector3(48.0, -12.0, 35.0)
+		if generated_elbow_r != null:
+			generated_elbow_r.rotation_degrees = Vector3(-95.0, 0.0, 0.0)
 		var generated_tween := create_tween()
-		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(42.0, 0.0, 34.0), 0.14).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		# Fast diagonal cut toward the space in front of the player.
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(-92.0, 8.0, -42.0), 0.14).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-10.0, 0.0, 0.0), 0.14).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		# Follow-through gives the blade weight instead of snapping straight back.
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(-112.0, 0.0, -18.0), 0.10).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.10)
 		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3.ZERO, 0.24).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.24)
 		generated_tween.finished.connect(_finish_generated_attack)
 		return
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
