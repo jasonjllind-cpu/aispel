@@ -6,7 +6,7 @@ How to use:
 3. Run again. The script writes retro_fantasy_hero.glb beside the .blend file.
 4. Copy the .glb into Godot: assets/models/characters/
 
-The model has an idle and a walk animation, named "Idle" and "Walk".
+This first geometry pass exports a stable model; animation is added only after its shape is approved.
 Designed for Blender 4.x and Godot's glTF (.glb) importer.
 """
 
@@ -76,15 +76,13 @@ def add_uv_sphere(name, location, scale, material):
     return obj
 
 
-def parent_to_bone(obj, armature, bone_name):
-    # Preserve the part's visible world transform before bone parenting.
-    # Without this, Blender applies the bone's rest offset a second time and
-    # the hero appears to explode into separate pieces.
+def parent_to_hero_root(obj, hero_root):
+    # Keep the visual model as one stable hierarchy. The previous export used
+    # direct bone-parenting and Blender applied rest-pose offsets incorrectly,
+    # scattering the body parts after Godot imported the GLB.
     world_matrix = obj.matrix_world.copy()
-    obj.parent = armature
-    obj.parent_type = "BONE"
-    obj.parent_bone = bone_name
-    obj.matrix_parent_inverse = armature.matrix_world.inverted()
+    obj.parent = hero_root
+    obj.matrix_parent_inverse = hero_root.matrix_world.inverted()
     obj.matrix_world = world_matrix
 
 
@@ -175,7 +173,7 @@ def create_rig(collection):
 
 # ---------- Model ----------
 
-def create_hero(rig, collection, materials):
+def create_hero(hero_root, collection, materials):
     skin = materials["skin"]
     cloth = materials["cloth"]
     dark = materials["dark"]
@@ -184,8 +182,8 @@ def create_hero(rig, collection, materials):
     cape_mat = materials["cape"]
 
     parts = []
-    def part(obj, bone):
-        parent_to_bone(obj, rig, bone)
+    def part(obj, _bone_name):
+        parent_to_hero_root(obj, hero_root)
         for linked_collection in list(obj.users_collection):
             linked_collection.objects.unlink(obj)
         collection.objects.link(obj)
@@ -219,12 +217,12 @@ def create_hero(rig, collection, materials):
     return parts
 
 
-def export_glb(collection, rig):
+def export_glb(collection, hero_root):
     # Export exactly this hero collection, including the rig and its NLA actions.
     bpy.ops.object.select_all(action="DESELECT")
     for obj in collection.objects:
         obj.select_set(True)
-    bpy.context.view_layer.objects.active = rig
+    bpy.context.view_layer.objects.active = hero_root
 
     # A terminal build may pass an explicit output path after Blender's "--".
     arguments = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
@@ -262,13 +260,14 @@ def main():
         "metal": make_material("Hero_Metal", (0.34, 0.37, 0.46), metallic=0.62, roughness=0.42),
         "cape": make_material("Hero_Cape", (0.19, 0.025, 0.06)),
     }
-    rig = create_rig(collection)
-    create_hero(rig, collection, materials)
-    export_path = export_glb(collection, rig)
+    hero_root = bpy.data.objects.new("RetroFantasyHero", None)
+    collection.objects.link(hero_root)
+    create_hero(hero_root, collection, materials)
+    export_path = export_glb(collection, hero_root)
 
-    # Place the hero at the world origin and select it for immediate inspection.
+    # Geometry pass: export a stable, complete hero before animation is added.
     bpy.context.scene.frame_set(1)
-    print("Hero ready. Idle and Walk animations exported. File: " + export_path)
+    print("Hero geometry ready. File: " + export_path)
 
 
 if __name__ == "__main__":
