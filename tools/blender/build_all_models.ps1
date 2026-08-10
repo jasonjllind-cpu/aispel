@@ -10,9 +10,6 @@ $modelRoot = Join-Path $projectRoot "assets\models"
 
 # Hero first: this also creates assets/models/characters/retro_fantasy_hero.glb.
 & (Join-Path $PSScriptRoot "build_hero.ps1") -BlenderPath $BlenderPath
-if ($LASTEXITCODE -ne 0) {
-    throw "Hjältemodellen kunde inte byggas."
-}
 
 if (-not (Test-Path $packGenerator)) {
     throw "Asset-generatorn saknas: $packGenerator"
