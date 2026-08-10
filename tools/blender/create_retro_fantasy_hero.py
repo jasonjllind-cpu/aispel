@@ -237,6 +237,42 @@ def create_hero(hero_root, collection, materials):
     part(add_box("LeftPouch", (0.28, -0.22, 0.87), (0.105, 0.075, 0.13), leather, 0.025))
     part(add_box("RightPouch", (-0.22, -0.22, 0.87), (0.09, 0.07, 0.11), leather, 0.025))
 
+    # Animation pivots are exported as stable glTF nodes. Godot rotates these
+    # nodes from the player's real movement state, keeping animation responsive
+    # while every mesh stays attached to its anatomical joint.
+    by_name = {obj.name: obj for obj in parts}
+
+    def pivot(name, location, member_names):
+        node = bpy.data.objects.new(name, None)
+        node.empty_display_type = "PLAIN_AXES"
+        node.empty_display_size = 0.12
+        node.location = location
+        collection.objects.link(node)
+        parent_to_hero_root(node, hero_root)
+        for member_name in member_names:
+            member = by_name.get(member_name)
+            if member is not None:
+                parent_to_hero_root(member, node)
+        return node
+
+    pivot("HeroArmPivotL", (0.405, 0, 1.43), [
+        "UpperArm_L", "Forearm_L", "Hand_L"
+    ])
+    pivot("HeroArmPivotR", (-0.405, 0, 1.43), [
+        "UpperArm_R", "Forearm_R", "Hand_R",
+        "SwordGrip", "SwordGuard", "SwordBlade", "SwordTip"
+    ])
+    pivot("HeroLegPivotL", (0.155, 0, 0.86), [
+        "UpperLeg_L", "LowerLeg_L", "Boot_L"
+    ])
+    pivot("HeroLegPivotR", (-0.155, 0, 0.86), [
+        "UpperLeg_R", "LowerLeg_R", "Boot_R"
+    ])
+    pivot("HeroHeadPivot", (0, 0, 1.55), [
+        "Head", "FaceShadow", "Hood"
+    ])
+    pivot("HeroCapePivot", (0, 0.16, 1.48), ["Cape"])
+
     return parts
 
 def export_glb(collection, hero_root):
