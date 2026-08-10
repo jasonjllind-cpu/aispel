@@ -182,40 +182,62 @@ def create_hero(hero_root, collection, materials):
     cape_mat = materials["cape"]
 
     parts = []
-    def part(obj, _bone_name):
+
+    def part(obj):
         parent_to_hero_root(obj, hero_root)
         for linked_collection in list(obj.users_collection):
             linked_collection.objects.unlink(obj)
         collection.objects.link(obj)
         parts.append(obj)
+        return obj
 
-    # Torso, belt and cape: a hooded adventurer silhouette.
-    part(add_cone("Torso", (0, 0, 1.24), 0.42, 0.30, 0.78, cloth, 6), "Spine")
-    part(add_box("Belt", (0, 0, 0.98), (0.43, 0.30, 0.08), leather, 0.025), "Spine")
-    cape = add_cone("Cape", (0, 0.23, 1.15), 0.43, 0.20, 0.90, cape_mat, 5)
-    cape.rotation_euler = (math.radians(8), 0, 0)
-    part(cape, "Spine")
+    # A compact, readable silhouette with every neighboring piece overlapping
+    # slightly. This prevents visible gaps from any third-person camera angle.
+    part(add_cone("Tunic", (0, 0, 1.19), 0.39, 0.31, 0.72, cloth, 8))
+    part(add_box("ShoulderBridge", (0, 0, 1.48), (0.48, 0.20, 0.13), cloth, 0.04))
+    part(add_box("Belt", (0, -0.005, 0.91), (0.40, 0.24, 0.065), leather, 0.025))
+    part(add_box("BeltBuckle", (0, -0.255, 0.91), (0.075, 0.025, 0.075), metal, 0.012))
 
-    # Head and pointed hood.
-    part(add_uv_sphere("Head", (0, 0, 1.78), (0.28, 0.25, 0.28), skin), "Head")
-    part(add_cone("Hood", (0, 0, 1.99), 0.34, 0.08, 0.58, dark, 6), "Head")
+    # Cape begins under the shoulders and ends above the boots.
+    cape = add_cone("Cape", (0, 0.18, 1.08), 0.42, 0.25, 1.02, cape_mat, 7)
+    cape.rotation_euler = (math.radians(4), 0, 0)
+    part(cape)
 
-    # Boots and limbs.
+    # Head, face and hood are nested closely instead of stacked apart.
+    part(add_uv_sphere("Head", (0, -0.015, 1.76), (0.245, 0.225, 0.255), skin))
+    part(add_box("FaceShadow", (0, -0.222, 1.76), (0.17, 0.025, 0.14), dark, 0.025))
+    part(add_cone("Hood", (0, 0.005, 1.95), 0.315, 0.055, 0.54, dark, 8))
+    part(add_box("HoodCollar", (0, 0.01, 1.54), (0.34, 0.22, 0.105), dark, 0.04))
+
+    # Arms hang directly below the shoulder bridge. Upper arm, forearm and
+    # hand overlap so the character remains a single visual figure.
     for side, sign in (("L", 1), ("R", -1)):
-        part(add_box("Leg_" + side, (0.19 * sign, 0, 0.45), (0.15, 0.16, 0.40), dark, 0.03), "Leg_" + side)
-        part(add_box("Boot_" + side, (0.19 * sign, -0.08, 0.08), (0.18, 0.25, 0.12), leather, 0.03), "Leg_" + side)
-        part(add_box("Arm_" + side, (0.47 * sign, 0, 1.18), (0.13, 0.14, 0.35), cloth, 0.03), "Arm_" + side)
-        part(add_uv_sphere("Hand_" + side, (0.62 * sign, 0, 0.82), (0.13, 0.13, 0.14), skin), "Arm_" + side)
+        x = 0.405 * sign
+        part(add_uv_sphere("Shoulder_" + side, (x, 0, 1.42), (0.17, 0.17, 0.18), cloth))
+        part(add_box("UpperArm_" + side, (x, 0, 1.20), (0.135, 0.145, 0.255), cloth, 0.035))
+        part(add_box("Forearm_" + side, (x, -0.005, 0.91), (0.125, 0.135, 0.20), dark, 0.03))
+        part(add_uv_sphere("Hand_" + side, (x, -0.01, 0.73), (0.13, 0.125, 0.14), skin))
 
-    # Sword is on the right hand: blade faces forward along negative Y.
-    blade = add_box("SwordBlade", (-0.68, -0.16, 0.70), (0.055, 0.055, 0.58), metal, 0.015)
-    blade.rotation_euler = (math.radians(-18), 0, 0)
-    part(blade, "Arm_R")
-    part(add_box("SwordGuard", (-0.68, -0.10, 0.34), (0.23, 0.06, 0.045), metal, 0.01), "Arm_R")
-    part(add_box("SwordGrip", (-0.68, -0.10, 0.24), (0.05, 0.05, 0.14), leather, 0.01), "Arm_R")
+    # Legs overlap the tunic hem and boots overlap the lower legs.
+    for side, sign in (("L", 1), ("R", -1)):
+        x = 0.155 * sign
+        part(add_box("UpperLeg_" + side, (x, 0, 0.66), (0.145, 0.16, 0.27), dark, 0.03))
+        part(add_box("LowerLeg_" + side, (x, 0, 0.34), (0.13, 0.145, 0.22), dark, 0.03))
+        part(add_box("Boot_" + side, (x, -0.075, 0.105), (0.17, 0.235, 0.13), leather, 0.035))
+
+    # The sword grip passes through the right hand. Guard and blade touch the
+    # grip, creating one believable held weapon instead of floating pieces.
+    sword_x = -0.405
+    part(add_box("SwordGrip", (sword_x, -0.015, 0.68), (0.045, 0.045, 0.18), leather, 0.012))
+    part(add_box("SwordGuard", (sword_x, -0.015, 0.55), (0.19, 0.055, 0.04), metal, 0.012))
+    part(add_box("SwordBlade", (sword_x, -0.015, 0.25), (0.052, 0.035, 0.30), metal, 0.012))
+    part(add_cone("SwordTip", (sword_x, -0.015, -0.025), 0.052, 0.0, 0.18, metal, 4))
+
+    # Small equipment details add scale without losing the retro low-poly look.
+    part(add_box("LeftPouch", (0.28, -0.22, 0.87), (0.105, 0.075, 0.13), leather, 0.025))
+    part(add_box("RightPouch", (-0.22, -0.22, 0.87), (0.09, 0.07, 0.11), leather, 0.025))
 
     return parts
-
 
 def export_glb(collection, hero_root):
     # Export exactly this hero collection, including the rig and its NLA actions.
