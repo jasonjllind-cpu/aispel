@@ -1,5 +1,7 @@
 extends Node
 
+signal starting_terrain_ready
+
 const WORLD_GENERATOR_SCRIPT := preload("res://scripts/world/world_generator.gd")
 const TERRAIN_CHUNK_SCRIPT := preload("res://scripts/world/terrain_chunk.gd")
 
@@ -8,13 +10,7 @@ const REGION_CONFIG: Dictionary = {
 	"starting_valley": {
 		"biome": "green_highlands",
 		"slots": [
-			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 14.0, "feather": 8.0, "height": 0.015},
-			{"id": "abandoned_camp", "center": Vector2(-16, 4), "radius": 10.0, "feather": 6.0, "height": 0.015},
-			{"id": "moon_shrine", "center": Vector2(-34, -28), "radius": 12.0, "feather": 7.0, "height": 0.015},
-			{"id": "ruined_keep", "center": Vector2(28, -58), "radius": 24.0, "feather": 10.0, "height": 0.015},
-			{"id": "lonely_watchtower", "center": Vector2(-58, -72), "radius": 14.0, "feather": 8.0, "height": 0.015},
-			{"id": "whispering_crypt", "center": Vector2(72, -34), "radius": 17.0, "feather": 9.0, "height": 0.015},
-			{"id": "starfall_grove", "center": Vector2(66, 46), "radius": 13.0, "feather": 8.0, "height": 0.015}
+			{"id": "player_spawn", "center": Vector2(0, 24), "radius": 6.0, "feather": 14.0, "height_mode": "terrain"}
 		]
 	},
 	"blackwood": {
@@ -43,6 +39,7 @@ var generator: RefCounted
 var elapsed: float = 0.0
 var chunk_data_cache: Dictionary = {}
 var generated_region_count: int = 0
+var starting_terrain_built: bool = false
 var status_label: Label
 
 func _ready() -> void:
@@ -63,8 +60,15 @@ func _install() -> void:
 	generator.call("configure", seed_value)
 	_build_status_ui(seed_value)
 	_build_starting_valley_terrain()
+	starting_terrain_built = world.has_node("GeneratedStartingValley")
+	if starting_terrain_built:
+		starting_terrain_ready.emit()
 	_scan_runtime_regions()
 	set_process(true)
+
+func is_starting_terrain_ready() -> bool:
+	return starting_terrain_built
+
 
 func _process(delta: float) -> void:
 	elapsed += delta

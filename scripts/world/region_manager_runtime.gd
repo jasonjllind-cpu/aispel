@@ -8,6 +8,12 @@ const CATALOG_UNLOAD_RADIUS: float = 185.0
 
 var landmark_builder: RefCounted = LANDMARK_BUILDER_SCRIPT.new()
 
+func _build_region_ui() -> void:
+	super._build_region_ui()
+	if debug_label != null:
+		debug_label.free()
+		debug_label = null
+
 func _build_backbone_routes() -> void:
 	# The inherited manager creates the prototype route geometry during install,
 	# before player/streaming checks. Headless and dedicated-server runtimes only

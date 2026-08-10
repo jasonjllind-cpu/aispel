@@ -1,10 +1,10 @@
 extends "res://scripts/exploration_system.gd"
 
-# Compatibility wrapper for the original authored exploration prototype.
-# Its crypt/camp/grove helpers build presentation meshes eagerly. Headless and
-# dedicated-server runtimes use the deterministic ProceduralExplorationSystem
-# for authoritative exploration state and therefore skip this legacy client layer.
+# The authored prototype exploration layer used fixed world coordinates and
+# therefore overlaid the same camp, shrine, crypt, grove, enemies and discovery
+# zones on every generated seed. The procedural exploration runtime now owns all
+# client presentation and authoritative generated content.
+var legacy_presentation_enabled: bool = false
+
 func _ready() -> void:
-	if DisplayServer.get_name() == "headless":
-		return
-	super._ready()
+	set_process(false)

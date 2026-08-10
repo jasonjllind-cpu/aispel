@@ -3,6 +3,7 @@ extends CharacterBody3D
 const ITEM_DB := preload("res://scripts/item_db.gd")
 const TEX_METAL := preload("res://assets/textures/metal.svg")
 const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
+const HERO_MODEL_PATH := "res://assets/models/characters/retro_fantasy_hero.glb"
 
 @export var move_speed := 6.0
 @export var sprint_speed := 9.0
@@ -13,6 +14,7 @@ const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
 @export var attack_range := 2.8
 @export var attack_cooldown := 0.52
 @export var max_health := 100
+@export var visual_ground_clearance := 0.08
 
 var gravity := 18.0
 var health := 100
@@ -21,6 +23,19 @@ var walk_phase := 0.0
 var camera_pivot: Node3D
 var camera: Camera3D
 var visual: Node3D
+var generated_hero: Node3D
+var generated_arm_l: Node3D
+var generated_arm_r: Node3D
+var generated_elbow_l: Node3D
+var generated_elbow_r: Node3D
+var generated_leg_l: Node3D
+var generated_leg_r: Node3D
+var generated_knee_l: Node3D
+var generated_knee_r: Node3D
+var generated_body: Node3D
+var generated_head: Node3D
+var generated_cape: Node3D
+var generated_attack_active: bool = false
 var spawn_position := Vector3.ZERO
 
 var inventory: Dictionary = {"Rusty Sword": 1}
@@ -40,11 +55,49 @@ func _ready() -> void:
 	camera_pivot = $CameraPivot
 	camera = $CameraPivot/SpringArm3D/Camera3D
 	visual = $Visual
+	_install_generated_hero_model()
+	# Keep the rendered boots slightly above the mathematical collision plane.
+	# This prevents faceted terrain from visually cutting through the model.
+	visual.position.y = visual_ground_clearance
 	spawn_position = global_position
 	health = max_health
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_player_hud()
 	_refresh_hud()
+
+
+func _install_generated_hero_model() -> void:
+	# The project remains playable before the terminal asset build has run.
+	# Once the GLB exists Godot imports it as a PackedScene and it replaces
+	# the temporary primitive player mesh without changing movement/collision.
+	if visual == null or not ResourceLoader.exists(HERO_MODEL_PATH):
+		return
+	var hero_scene := load(HERO_MODEL_PATH) as PackedScene
+	if hero_scene == null:
+		push_warning("Could not load generated hero model: %s" % HERO_MODEL_PATH)
+		return
+	for child in visual.get_children():
+		if child is Node3D:
+			(child as Node3D).visible = false
+	var hero := hero_scene.instantiate() as Node3D
+	if hero == null:
+		push_warning("Generated hero scene had no 3D root")
+		return
+	hero.name = "GeneratedRetroFantasyHero"
+	hero.scale = Vector3.ONE
+	visual.add_child(hero)
+	generated_hero = hero
+	generated_arm_l = hero.find_child("HeroArmPivotL", true, false) as Node3D
+	generated_arm_r = hero.find_child("HeroArmPivotR", true, false) as Node3D
+	generated_elbow_l = hero.find_child("HeroElbowPivotL", true, false) as Node3D
+	generated_elbow_r = hero.find_child("HeroElbowPivotR", true, false) as Node3D
+	generated_leg_l = hero.find_child("HeroLegPivotL", true, false) as Node3D
+	generated_leg_r = hero.find_child("HeroLegPivotR", true, false) as Node3D
+	generated_knee_l = hero.find_child("HeroKneePivotL", true, false) as Node3D
+	generated_knee_r = hero.find_child("HeroKneePivotR", true, false) as Node3D
+	generated_body = hero.find_child("HeroBodyPivot", true, false) as Node3D
+	generated_head = hero.find_child("HeroHeadPivot", true, false) as Node3D
+	generated_cape = hero.find_child("HeroCapePivot", true, false) as Node3D
 
 func _build_player_hud() -> void:
 	var layer := CanvasLayer.new()
@@ -119,8 +172,11 @@ func _physics_process(delta: float) -> void:
 
 	if not is_on_floor():
 		velocity.y -= gravity * delta
-	elif Input.is_action_just_pressed("jump") and not inventory_open:
-		velocity.y = jump_velocity
+	else:
+		if velocity.y < 0.0:
+			velocity.y = 0.0
+		if Input.is_action_just_pressed("jump") and not inventory_open:
+			velocity.y = jump_velocity
 
 	var input_vec: Vector2 = Vector2.ZERO
 	if not inventory_open:
@@ -139,8 +195,99 @@ func _physics_process(delta: float) -> void:
 	_animate_visual(delta, input_vec.length(), sprinting)
 	_update_interaction_prompt()
 
+func _animate_generated_hero(delta: float, input_strength: float, sprinting: bool) -> void:
+	var blend: float = min(delta * 12.0, 1.0)
+	visual.position.y = lerp(visual.position.y, visual_ground_clearance, blend)
+
+	if not is_on_floor():
+		var fall_tilt: float = -10.0 if velocity.y > 0.0 else 12.0
+		_set_pivot_x(generated_body, -3.0 if velocity.y > 0.0 else 5.0, blend)
+		_set_pivot_x(generated_leg_l, -18.0, blend)
+		_set_pivot_x(generated_leg_r, 18.0, blend)
+		_set_pivot_x(generated_knee_l, 24.0, blend)
+		_set_pivot_x(generated_knee_r, 24.0, blend)
+		_set_pivot_x(generated_arm_l, fall_tilt, blend)
+		_set_pivot_x(generated_elbow_l, -18.0, blend)
+		if not generated_attack_active:
+			_set_pivot_x(generated_arm_r, fall_tilt, blend)
+			_set_pivot_x(generated_elbow_r, -18.0, blend)
+		_set_pivot_x(generated_cape, 22.0, blend)
+		_set_pivot_z(generated_head, 0.0, blend)
+		return
+
+	if input_strength > 0.05:
+		walk_phase += delta * (13.8 if sprinting else 8.2)
+		var wave: float = sin(walk_phase)
+		if sprinting:
+			# Running is a separate pose: forward lean, bent elbows, high knees
+			# and a much wider stride instead of a sped-up walk cycle.
+			_set_pivot_x(generated_body, -8.0, blend)
+			_set_pivot_z(generated_body, wave * 1.4, blend)
+			_set_pivot_x(generated_leg_l, -wave * 34.0, blend)
+			_set_pivot_x(generated_leg_r, wave * 34.0, blend)
+			_set_pivot_x(generated_knee_l, max(0.0, wave) * 24.0 + 5.0, blend)
+			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 24.0 + 5.0, blend)
+			_set_pivot_x(generated_arm_l, wave * 30.0, blend)
+			_set_pivot_x(generated_elbow_l, -38.0, blend)
+			_set_pivot_z(generated_arm_l, -8.0, blend)
+			if not generated_attack_active:
+				_set_pivot_x(generated_arm_r, -wave * 30.0, blend)
+				_set_pivot_x(generated_elbow_r, -38.0, blend)
+				_set_pivot_z(generated_arm_r, 8.0, blend)
+			_set_pivot_x(generated_head, 5.0, blend)
+			_set_pivot_z(generated_head, -wave * 1.2, blend)
+			_set_pivot_x(generated_cape, 15.0 + abs(wave) * 9.0, blend)
+		else:
+			_set_pivot_x(generated_body, 0.0, blend)
+			_set_pivot_z(generated_body, wave * 1.1, blend)
+			_set_pivot_x(generated_leg_l, -wave * 25.0, blend)
+			_set_pivot_x(generated_leg_r, wave * 25.0, blend)
+			_set_pivot_x(generated_knee_l, max(0.0, wave) * 12.0, blend)
+			_set_pivot_x(generated_knee_r, max(0.0, -wave) * 12.0, blend)
+			_set_pivot_x(generated_arm_l, wave * 20.0, blend)
+			_set_pivot_x(generated_elbow_l, -8.0, blend)
+			_set_pivot_z(generated_arm_l, 0.0, blend)
+			if not generated_attack_active:
+				_set_pivot_x(generated_arm_r, -wave * 20.0, blend)
+				_set_pivot_x(generated_elbow_r, -8.0, blend)
+				_set_pivot_z(generated_arm_r, 0.0, blend)
+			_set_pivot_x(generated_head, 0.0, blend)
+			_set_pivot_z(generated_head, -wave * 1.0, blend)
+			_set_pivot_x(generated_cape, 8.0 + abs(wave) * 7.0, blend)
+	else:
+		walk_phase += delta * 2.1
+		var breath: float = sin(walk_phase) * 1.8
+		_set_pivot_x(generated_body, breath * 0.3, blend)
+		_set_pivot_z(generated_body, 0.0, blend)
+		_set_pivot_x(generated_leg_l, 0.0, blend)
+		_set_pivot_x(generated_leg_r, 0.0, blend)
+		_set_pivot_x(generated_knee_l, 0.0, blend)
+		_set_pivot_x(generated_knee_r, 0.0, blend)
+		_set_pivot_x(generated_arm_l, breath, blend)
+		_set_pivot_x(generated_elbow_l, -5.0, blend)
+		_set_pivot_z(generated_arm_l, 0.0, blend)
+		if not generated_attack_active:
+			_set_pivot_x(generated_arm_r, -breath, blend)
+			_set_pivot_x(generated_elbow_r, -5.0, blend)
+			_set_pivot_z(generated_arm_r, 0.0, blend)
+		_set_pivot_x(generated_head, 0.0, blend)
+		_set_pivot_z(generated_head, sin(walk_phase * 0.55) * 1.1, blend)
+		_set_pivot_x(generated_cape, 5.0 + abs(breath), blend)
+
+
+func _set_pivot_x(pivot: Node3D, degrees: float, blend: float) -> void:
+	if pivot != null:
+		pivot.rotation_degrees.x = lerp(pivot.rotation_degrees.x, degrees, blend)
+
+func _set_pivot_z(pivot: Node3D, degrees: float, blend: float) -> void:
+	if pivot != null:
+		pivot.rotation_degrees.z = lerp(pivot.rotation_degrees.z, degrees, blend)
+
 func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> void:
 	if visual == null:
+		return
+	if generated_hero != null:
+		_animate_generated_hero(delta, input_strength, sprinting)
 		return
 	var arm_l := get_node_or_null("Visual/ArmL") as Node3D
 	var arm_r := get_node_or_null("Visual/ArmR") as Node3D
@@ -161,10 +308,12 @@ func _animate_visual(delta: float, input_strength: float, sprinting: bool) -> vo
 			leg_r.rotation_degrees.x = swing * 0.75
 		if cape != null:
 			cape.rotation_degrees.x = 8.0 + abs(sin(walk_phase)) * (8.0 if sprinting else 4.0)
-		visual.position.y = abs(sin(walk_phase * 2.0)) * 0.035
+		# Limb swing communicates walking without moving the entire character
+		# vertically relative to its collider and the terrain.
+		visual.position.y = lerp(visual.position.y, visual_ground_clearance, min(delta * 12.0, 1.0))
 	else:
 		walk_phase += delta * 2.0
-		visual.position.y = lerp(visual.position.y, 0.0, min(delta * 8.0, 1.0))
+		visual.position.y = lerp(visual.position.y, visual_ground_clearance, min(delta * 8.0, 1.0))
 		if arm_l != null:
 			arm_l.rotation_degrees.x = lerp(arm_l.rotation_degrees.x, 0.0, min(delta * 8.0, 1.0))
 		if arm_r != null:
@@ -235,6 +384,26 @@ func _try_attack() -> void:
 		_set_status("Hit for %d" % attack_damage)
 
 func _play_attack_animation() -> void:
+	if generated_arm_r != null:
+		generated_attack_active = true
+		# Blender's +Y becomes Godot's local -Z. The earlier cut used the
+		# inverse X direction and visibly swung behind the character.
+		generated_arm_r.rotation_degrees = Vector3(-36.0, 6.0, -20.0)
+		if generated_elbow_r != null:
+			generated_elbow_r.rotation_degrees = Vector3(-68.0, 0.0, 0.0)
+		var generated_tween := create_tween()
+		# Extend the blade into the forward hit arc.
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(72.0, -4.0, 26.0), 0.16).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-12.0, 0.0, 0.0), 0.16).set_trans(Tween.TRANS_QUART).set_ease(Tween.EASE_IN)
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3(88.0, 0.0, 12.0), 0.09).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-6.0, 0.0, 0.0), 0.09)
+		generated_tween.tween_property(generated_arm_r, "rotation_degrees", Vector3.ZERO, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		if generated_elbow_r != null:
+			generated_tween.parallel().tween_property(generated_elbow_r, "rotation_degrees", Vector3(-5.0, 0.0, 0.0), 0.25)
+		generated_tween.finished.connect(_finish_generated_attack)
+		return
 	var pivot := get_node_or_null("Visual/WeaponPivot") as Node3D
 	if pivot == null:
 		return
@@ -242,6 +411,9 @@ func _play_attack_animation() -> void:
 	var tween := create_tween()
 	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -115), 0.12).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.tween_property(pivot, "rotation_degrees", Vector3(0, 0, -25), 0.20).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+
+func _finish_generated_attack() -> void:
+	generated_attack_active = false
 
 func _get_attack_damage() -> int:
 	return max(8, ITEM_DB.get_damage(equipped_weapon))

@@ -109,7 +109,11 @@ func _on_seed_submitted(_value: String) -> void:
 func _randomize_seed() -> void:
 	var rng := RandomNumberGenerator.new()
 	rng.randomize()
-	seed_edit.text = str(rng.randi_range(100000, 2147483000))
+	var current_seed: int = _current_seed()
+	var seed_value: int = current_seed
+	while seed_value == current_seed:
+		seed_value = rng.randi_range(100000, 2147483000)
+	seed_edit.text = str(seed_value)
 	seed_edit.grab_focus()
 	seed_edit.select_all()
 
@@ -123,6 +127,8 @@ func _apply_seed() -> void:
 		seed_value = 8242601
 	if world_state != null and world_state.has_method("new_world"):
 		world_state.call("new_world", seed_value)
+		if world_state.has_method("preserve_new_world_on_scene_reload"):
+			world_state.call("preserve_new_world_on_scene_reload")
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	get_tree().reload_current_scene()
 

@@ -28,15 +28,19 @@ func _ready() -> void:
 	_build_hud()
 
 func _build_environment() -> void:
+	var theme_index: int = _seed_for("environment") % 4
+	var background_colors: Array[Color] = [Color("29106f"), Color("102f54"), Color("4a172e"), Color("163d35")]
+	var ambient_colors: Array[Color] = [Color("7667c7"), Color("5f8fbd"), Color("b06a83"), Color("62a28b")]
+	var fog_colors: Array[Color] = [Color("625b9d"), Color("446f91"), Color("8a4c64"), Color("497f6d")]
 	var world_env := WorldEnvironment.new()
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
-	env.background_color = Color("29106f")
+	env.background_color = background_colors[theme_index]
 	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	env.ambient_light_color = Color("7667c7")
+	env.ambient_light_color = ambient_colors[theme_index]
 	env.ambient_light_energy = 0.72
 	env.fog_enabled = true
-	env.fog_light_color = Color("625b9d")
+	env.fog_light_color = fog_colors[theme_index]
 	env.fog_density = 0.011
 	env.fog_sky_affect = 0.88
 	world_env.environment = env
@@ -67,6 +71,12 @@ func _build_environment() -> void:
 	moon.position = Vector3(58, 48, -92)
 	moon.material_override = _mat(Color("dbe1ff"), 0.15)
 	add_child(moon)
+
+func _seed_for(scope_id: String) -> int:
+	var world_state := get_node_or_null("/root/WorldState")
+	if world_state != null and world_state.has_method("stable_seed"):
+		return int(world_state.call("stable_seed", "legacy:%s" % scope_id))
+	return int(("8242601:legacy:%s" % scope_id).hash() & 0x7fffffff)
 
 func _mat(color: Color, rough: float = 1.0, texture: Texture2D = null) -> StandardMaterial3D:
 	var material := StandardMaterial3D.new()
@@ -158,7 +168,10 @@ func _add_static_cylinder(parent: Node3D, pos: Vector3, height: float, radius: f
 	return body
 
 func _build_ground() -> void:
-	_add_static_box(self, Vector3(0, -1.2, 0), Vector3(230, 2.4, 230), Color("4c7044"), TEX_GRASS)
+	var theme_index: int = _seed_for("ground_palette") % 4
+	var ground_colors: Array[Color] = [Color("4c7044"), Color("476b63"), Color("725146"), Color("53634a")]
+	var terrace_colors: Array[Color] = [Color("40643b"), Color("3c5d58"), Color("65443d"), Color("47583e")]
+	_add_static_box(self, Vector3(0, -1.2, 0), Vector3(230, 2.4, 230), ground_colors[theme_index], TEX_GRASS)
 
 	var terrace_positions: Array[Vector3] = [
 		Vector3(-48, 0.35, 32), Vector3(48, 0.55, 38), Vector3(-67, 0.70, -18),
@@ -169,30 +182,38 @@ func _build_ground() -> void:
 		Vector3(28, 1.7, 25), Vector3(25, 0.9, 18), Vector3(30, 1.1, 20)
 	]
 	for i in range(terrace_positions.size()):
-		_add_static_box(self, terrace_positions[i], terrace_sizes[i], Color("40643b"), TEX_GRASS)
+		_add_static_box(self, terrace_positions[i], terrace_sizes[i], terrace_colors[theme_index], TEX_GRASS)
 
 func _build_old_road() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _seed_for("old_road")
+	var phase: float = rng.randf_range(0.0, TAU)
+	var bend: float = rng.randf_range(3.0, 8.0)
+	var drift: float = rng.randf_range(-0.18, 0.38)
 	for i in range(22):
 		var fi: float = float(i)
 		var z: float = 24.0 - fi * 5.0
-		var x: float = sin(fi * 0.42) * 3.0 + fi * 0.28
+		var x: float = sin(fi * 0.42 + phase) * bend + fi * drift
 		var road_piece := _add_static_box(self, Vector3(x, 0.035, z), Vector3(5.4, 0.08, 5.2), Color("8b8068"))
-		road_piece.rotation_degrees.y = sin(fi * 0.35) * 7.0
+		road_piece.rotation_degrees.y = sin(fi * 0.35 + phase) * 11.0
 		if i % 3 == 0:
 			_create_rock(Vector3(x - 3.8, 0.18, z + 1.0), Vector3(0.65, 0.45, 0.70), Color("66616a"))
 		if i % 4 == 0:
 			_create_rock(Vector3(x + 3.7, 0.15, z - 0.8), Vector3(0.55, 0.38, 0.60), Color("5d5962"))
 
 func _build_mountain_ring() -> void:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = _seed_for("mountain_ring")
 	var mountain_positions: Array[Vector3] = [
 		Vector3(-112, 20, -88), Vector3(-84, 16, -118), Vector3(-42, 22, -126),
 		Vector3(0, 18, -132), Vector3(44, 24, -128), Vector3(84, 18, -116),
 		Vector3(116, 22, -86), Vector3(-120, 18, 12), Vector3(122, 16, 18)
 	]
 	for i in range(mountain_positions.size()):
-		var pos: Vector3 = mountain_positions[i]
-		var height: float = 34.0 + float((i * 7) % 18)
-		var radius: float = 18.0 + float((i * 5) % 10)
+		var base_pos: Vector3 = mountain_positions[i]
+		var pos := base_pos + Vector3(rng.randf_range(-8.0, 8.0), rng.randf_range(-2.0, 5.0), rng.randf_range(-6.0, 6.0))
+		var height: float = rng.randf_range(30.0, 58.0)
+		var radius: float = rng.randf_range(15.0, 29.0)
 		_mesh_cylinder(self, "Mountain%d" % i, height, 0.0, radius, pos, Color("302f55"), Vector3.ZERO, null, 6)
 		_mesh_cylinder(self, "MountainCap%d" % i, height * 0.30, 0.0, radius * 0.34, pos + Vector3(0, height * 0.34, 0), Color("6d6c8d"), Vector3.ZERO, null, 6)
 
@@ -255,8 +276,9 @@ func _build_moon_shrine() -> void:
 
 func _build_forest() -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 82426
-	for i in range(125):
+	rng.seed = _seed_for("forest")
+	var tree_count: int = rng.randi_range(85, 175)
+	for i in range(tree_count):
 		var p := Vector3(rng.randf_range(-100, 100), 0, rng.randf_range(-100, 100))
 		if abs(p.x) < 7.0 and p.z > -95.0 and p.z < 30.0:
 			continue
@@ -295,7 +317,7 @@ func _create_gnarled_tree(pos: Vector3, tree_scale: float, lean: float) -> void:
 
 func _build_ground_details() -> void:
 	var rng := RandomNumberGenerator.new()
-	rng.seed = 1905
+	rng.seed = _seed_for("ground_details")
 	for i in range(70):
 		var pos := Vector3(rng.randf_range(-92, 92), 0.11, rng.randf_range(-92, 92))
 		if abs(pos.x) < 4.0 and pos.z > -92.0 and pos.z < 25.0:
@@ -430,6 +452,11 @@ func _spawn_player() -> void:
 	player.name = "Player"
 	player.position = Vector3(0, 1.2, 24)
 	player.set_script(PLAYER_SCRIPT)
+	# Keep the grounded capsule attached across adjacent terrain triangles.
+	# Without snap, tiny normal changes can alternate floor/air every frame.
+	player.floor_snap_length = 0.55
+	player.floor_max_angle = deg_to_rad(60.0)
+	player.floor_stop_on_slope = true
 
 	var collision := CollisionShape3D.new()
 	var capsule := CapsuleShape3D.new()
@@ -470,8 +497,10 @@ func _build_player_visual(player: CharacterBody3D) -> void:
 	_mesh_box(visual, "ShoulderR", Vector3(0.34, 0.17, 0.50), Vector3(0.48, 1.55, 0), Color("4c5060"), 0.78, TEX_METAL)
 	_mesh_cylinder(visual, "ArmL", 0.78, 0.12, 0.14, Vector3(-0.48, 1.17, 0), Color("373247"), Vector3(0, 0, -6), TEX_CLOTH, 6)
 	_mesh_cylinder(visual, "ArmR", 0.78, 0.12, 0.14, Vector3(0.48, 1.17, 0), Color("373247"), Vector3(0, 0, 6), TEX_CLOTH, 6)
-	_mesh_cylinder(visual, "LegL", 0.90, 0.13, 0.15, Vector3(-0.20, 0.25, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
-	_mesh_cylinder(visual, "LegR", 0.90, 0.13, 0.15, Vector3(0.20, 0.25, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
+	# A 0.90-high leg centered at 0.45 ends exactly at local Y=0,
+	# matching the capsule's bottom instead of extending below the ground.
+	_mesh_cylinder(visual, "LegL", 0.90, 0.13, 0.15, Vector3(-0.20, 0.45, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
+	_mesh_cylinder(visual, "LegR", 0.90, 0.13, 0.15, Vector3(0.20, 0.45, 0), Color("211f2d"), Vector3.ZERO, TEX_CLOTH, 6)
 	_mesh_box(visual, "Cape", Vector3(0.78, 1.20, 0.07), Vector3(0, 1.08, 0.27), Color("38244d"), 1.0, TEX_CLOTH)
 	_mesh_box(visual, "Belt", Vector3(0.70, 0.12, 0.46), Vector3(0, 0.83, 0), Color("5b3b29"), 1.0, TEX_BARK)
 
@@ -505,7 +534,7 @@ func _build_hud() -> void:
 	label.add_theme_font_size_override("font_size", 10)
 	layer.add_child(label)
 	var objective := Label.new()
-	objective.text = "Follow the old road. Find the moon shrine, ruined keep and lonely watchtower."
+	objective.text = "Explore the generated valley. Discover its roads, ruins, caves, enemies and hidden loot."
 	objective.position = Vector2(10, 25)
 	objective.add_theme_font_size_override("font_size", 10)
 	layer.add_child(objective)
