@@ -76,10 +76,15 @@ def add_uv_sphere(name, location, scale, material):
 
 
 def parent_to_bone(obj, armature, bone_name):
+    # Preserve the part's visible world transform before bone parenting.
+    # Without this, Blender applies the bone's rest offset a second time and
+    # the hero appears to explode into separate pieces.
+    world_matrix = obj.matrix_world.copy()
     obj.parent = armature
     obj.parent_type = "BONE"
     obj.parent_bone = bone_name
     obj.matrix_parent_inverse = armature.matrix_world.inverted()
+    obj.matrix_world = world_matrix
 
 
 # ---------- Rig and animations ----------
