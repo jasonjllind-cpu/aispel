@@ -13,6 +13,7 @@ Designed for Blender 4.x and Godot's glTF (.glb) importer.
 import bpy
 import math
 import os
+import sys
 from mathutils import Vector
 
 EXPORT_NAME = "retro_fantasy_hero.glb"
@@ -225,10 +226,15 @@ def export_glb(collection, rig):
         obj.select_set(True)
     bpy.context.view_layer.objects.active = rig
 
-    if bpy.data.filepath:
+    # A terminal build may pass an explicit output path after Blender's "--".
+    arguments = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else []
+    if arguments:
+        export_path = os.path.abspath(arguments[0])
+    elif bpy.data.filepath:
         export_path = os.path.join(os.path.dirname(bpy.data.filepath), EXPORT_NAME)
     else:
         export_path = os.path.join(os.path.expanduser("~"), EXPORT_NAME)
+    os.makedirs(os.path.dirname(export_path), exist_ok=True)
 
     bpy.ops.export_scene.gltf(
         filepath=export_path,
