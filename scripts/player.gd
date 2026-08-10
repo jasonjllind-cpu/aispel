@@ -3,6 +3,7 @@ extends CharacterBody3D
 const ITEM_DB := preload("res://scripts/item_db.gd")
 const TEX_METAL := preload("res://assets/textures/metal.svg")
 const TEX_CLOTH := preload("res://assets/textures/cloth.svg")
+const HERO_MODEL_PATH := "res://assets/models/characters/retro_fantasy_hero.glb"
 
 @export var move_speed := 6.0
 @export var sprint_speed := 9.0
@@ -41,6 +42,7 @@ func _ready() -> void:
 	camera_pivot = $CameraPivot
 	camera = $CameraPivot/SpringArm3D/Camera3D
 	visual = $Visual
+	_install_generated_hero_model()
 	# Keep the rendered boots slightly above the mathematical collision plane.
 	# This prevents faceted terrain from visually cutting through the model.
 	visual.position.y = visual_ground_clearance
@@ -49,6 +51,28 @@ func _ready() -> void:
 	Input.mouse_mode = Input.MOUSE_MODE_CAPTURED
 	_build_player_hud()
 	_refresh_hud()
+
+
+func _install_generated_hero_model() -> void:
+	# The project remains playable before the terminal asset build has run.
+	# Once the GLB exists Godot imports it as a PackedScene and it replaces
+	# the temporary primitive player mesh without changing movement/collision.
+	if visual == null or not ResourceLoader.exists(HERO_MODEL_PATH):
+		return
+	var hero_scene := load(HERO_MODEL_PATH) as PackedScene
+	if hero_scene == null:
+		push_warning("Could not load generated hero model: %s" % HERO_MODEL_PATH)
+		return
+	for child in visual.get_children():
+		if child is Node3D:
+			(child as Node3D).visible = false
+	var hero := hero_scene.instantiate() as Node3D
+	if hero == null:
+		push_warning("Generated hero scene had no 3D root")
+		return
+	hero.name = "GeneratedRetroFantasyHero"
+	hero.scale = Vector3.ONE
+	visual.add_child(hero)
 
 func _build_player_hud() -> void:
 	var layer := CanvasLayer.new()
