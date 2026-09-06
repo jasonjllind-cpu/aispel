@@ -1,0 +1,1 @@
+Trigger verified STL 3D Visare v1.2 build from refreshed base.
