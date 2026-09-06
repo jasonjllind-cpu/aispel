@@ -1,0 +1,63 @@
+name: Build STL Viewer APK v1.1
+
+on:
+  pull_request:
+    branches:
+      - chatgpt-stl-viewer-build-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Recover base project and apply v1.1 fixes
+        shell: bash
+        run: |
+          sed -n '/^UEsDB/,/^B64$/p' .github/workflows/stl-viewer-build.yml | head -n -1 | tr -d '[:space:]' | base64 --decode > /tmp/stlviewer.zip
+          unzip -q /tmp/stlviewer.zip
+          cp .github/stlviewer-v11-overrides/MainActivity.java STLViewerAndroid_v1/app/src/main/java/se/johan/stlviewer/MainActivity.java
+          cp .github/stlviewer-v11-overrides/AndroidManifest.xml STLViewerAndroid_v1/app/src/main/AndroidManifest.xml
+          cp .github/stlviewer-v11-overrides/app-build.gradle.kts STLViewerAndroid_v1/app/build.gradle.kts
+          test -f STLViewerAndroid_v1/app/build.gradle.kts
+
+      - name: Build debug APK
+        working-directory: STLViewerAndroid_v1
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK contents
+        shell: bash
+        run: |
+          test -s STLViewerAndroid_v1/app/build/outputs/apk/debug/app-debug.apk
+          unzip -l STLViewerAndroid_v1/app/build/outputs/apk/debug/app-debug.apk | grep -q classes.dex
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: STLViewerAndroid-v1.1-debug-apk
+          path: STLViewerAndroid_v1/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
