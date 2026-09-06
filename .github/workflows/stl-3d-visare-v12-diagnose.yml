@@ -1,0 +1,38 @@
+name: Diagnose STL 3D Visare v1.2 payload
+
+on:
+  pull_request:
+    branches:
+      - chatgpt-stl-viewer-build-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check payload parts
+        shell: bash
+        run: |
+          files=(
+            .github/stlviewer-v12-parts/part00.b64
+            .github/stlviewer-v12-parts/part01.b64
+            .github/stlviewer-v12-parts/part02.b64
+            .github/stlviewer-v12-parts/part03.b64
+            .github/stlviewer-v12-parts/part04a.b64
+            .github/stlviewer-v12-parts/part04b.b64
+            .github/stlviewer-v12-parts/part05.b64
+            .github/stlviewer-v12-parts/part06.b64
+          )
+          for f in "${files[@]}"; do
+            wc -c "$f"
+            sha256sum "$f"
+          done
+          cat "${files[@]}" > /tmp/all.b64
+          wc -c /tmp/all.b64
+          sha256sum /tmp/all.b64
+          tr -d '\n\r ' < /tmp/all.b64 | base64 --decode > /tmp/stl3d-v12.zip || true
+          ls -l /tmp/stl3d-v12.zip || true
+          unzip -t /tmp/stl3d-v12.zip || true
