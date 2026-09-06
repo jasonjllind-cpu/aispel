@@ -1,7 +1,7 @@
 name: Build STL Viewer APK v2
 
 on:
-  push:
+  pull_request:
     branches:
       - chatgpt-stl-viewer-build-20260906
   workflow_dispatch:
