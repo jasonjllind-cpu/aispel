@@ -1,1 +1,1 @@
-Trigger STL 3D Visare v1.2.1 build.
+Retrigger STL 3D Visare v1.2.1 build after robust crash-fix patch.
