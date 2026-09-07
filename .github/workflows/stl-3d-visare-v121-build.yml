@@ -57,128 +57,125 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
+
           p = Path('STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java')
           s = p.read_text()
-          s = s.replace('import android.content.Intent;\n', 'import android.content.Intent;\nimport android.content.ActivityNotFoundException;\n')
-          s = s.replace('    private StlGLSurfaceView glView;\n', '    private StlGLSurfaceView glView;\n    private boolean filePickerOpen;\n')
-          old = '''    private void openFilePicker() {
-              Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-              intent.addCategory(Intent.CATEGORY_OPENABLE);
-              intent.setType("*/*");
-              intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-              intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
 
-              try {
-                  startActivityForResult(intent, OPEN_STL);
-              } catch (Exception ex) {
-                  Toast.makeText(this, "Kunde inte öppna Androids filväljare.", Toast.LENGTH_LONG).show();
-              }
-          }
-          '''
-          new = '''    private void openFilePicker() {
-              filePickerOpen = true;
+          if 'import android.content.ActivityNotFoundException;' not in s:
+              s = s.replace(
+                  'import android.content.Intent;\n',
+                  'import android.content.Intent;\nimport android.content.ActivityNotFoundException;\n',
+                  1,
+              )
 
-              Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
-              intent.addCategory(Intent.CATEGORY_OPENABLE);
-              intent.setType("*/*");
-              intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
-                      "model/stl",
-                      "application/sla",
-                      "application/vnd.ms-pki.stl",
-                      "application/octet-stream",
-                      "*/*"
-              });
-              intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
-              intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+          if 'private boolean filePickerOpen;' not in s:
+              s = s.replace(
+                  '    private StlGLSurfaceView glView;\n',
+                  '    private StlGLSurfaceView glView;\n    private boolean filePickerOpen;\n',
+                  1,
+              )
 
-              try {
-                  startActivityForResult(intent, OPEN_STL);
-                  return;
-              } catch (ActivityNotFoundException first) {
-                  // Fall back below.
-              } catch (RuntimeException first) {
-                  // Fall back below instead of terminating the app.
-              }
+          open_lines = [
+              '    private void openFilePicker() {',
+              '        filePickerOpen = true;',
+              '',
+              '        Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);',
+              '        intent.addCategory(Intent.CATEGORY_OPENABLE);',
+              '        intent.setType("*/*");',
+              '        intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {',
+              '                "model/stl",',
+              '                "application/sla",',
+              '                "application/vnd.ms-pki.stl",',
+              '                "application/octet-stream",',
+              '                "*/*"',
+              '        });',
+              '        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);',
+              '        intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);',
+              '',
+              '        try {',
+              '            startActivityForResult(intent, OPEN_STL);',
+              '            return;',
+              '        } catch (ActivityNotFoundException first) {',
+              '            // Fall back below.',
+              '        } catch (RuntimeException first) {',
+              '            // Fall back below instead of terminating the app.',
+              '        }',
+              '',
+              '        Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);',
+              '        fallback.addCategory(Intent.CATEGORY_OPENABLE);',
+              '        fallback.setType("*/*");',
+              '        fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);',
+              '',
+              '        try {',
+              '            startActivityForResult(Intent.createChooser(fallback, "Välj STL-fil"), OPEN_STL);',
+              '        } catch (Exception ex) {',
+              '            filePickerOpen = false;',
+              '            Toast.makeText(this, "Kunde inte öppna Androids filväljare.", Toast.LENGTH_LONG).show();',
+              '        }',
+              '    }',
+          ]
+          new_open = '\n'.join(open_lines)
+          start = s.index('    private void openFilePicker() {')
+          end = s.index('    @Override\n    @SuppressWarnings("deprecation")', start)
+          s = s[:start] + new_open + '\n\n' + s[end:]
 
-              Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
-              fallback.addCategory(Intent.CATEGORY_OPENABLE);
-              fallback.setType("*/*");
-              fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+          result_needle = '        if (requestCode == OPEN_STL && resultCode == RESULT_OK && data != null) {\n'
+          if result_needle in s:
+              result_lines = [
+                  '        if (requestCode != OPEN_STL) return;',
+                  '',
+                  '        filePickerOpen = false;',
+                  '        if (glView != null) {',
+                  '            try {',
+                  '                glView.onResume();',
+                  '            } catch (RuntimeException ignored) {',
+                  '            }',
+                  '        }',
+                  '',
+                  '        if (resultCode == RESULT_OK && data != null) {',
+              ]
+              s = s.replace(result_needle, '\n'.join(result_lines) + '\n', 1)
+          elif 'if (requestCode != OPEN_STL) return;' not in s:
+              raise SystemExit('onActivityResult marker not found')
 
-              try {
-                  startActivityForResult(Intent.createChooser(fallback, "Välj STL-fil"), OPEN_STL);
-              } catch (Exception ex) {
-                  filePickerOpen = false;
-                  Toast.makeText(this, "Kunde inte öppna Androids filväljare.", Toast.LENGTH_LONG).show();
-              }
-          }
-          '''
-          if old not in s:
-              raise SystemExit('openFilePicker source block not found')
-          s = s.replace(old, new)
-          old2 = '''        if (requestCode == OPEN_STL && resultCode == RESULT_OK && data != null) {
-              Uri uri = data.getData();
-          '''
-          new2 = '''        if (requestCode != OPEN_STL) return;
+          lifecycle_lines = [
+              '    @Override',
+              '    protected void onResume() {',
+              '        super.onResume();',
+              '        if (glView != null && !filePickerOpen) {',
+              '            try {',
+              '                glView.onResume();',
+              '            } catch (RuntimeException ignored) {',
+              '            }',
+              '        }',
+              '    }',
+              '',
+              '    @Override',
+              '    protected void onPause() {',
+              '        // Keep the GL thread alive while Android\'s document picker is on top.',
+              '        if (glView != null && !filePickerOpen) {',
+              '            try {',
+              '                glView.onPause();',
+              '            } catch (RuntimeException ignored) {',
+              '            }',
+              '        }',
+              '        super.onPause();',
+              '    }',
+          ]
+          new_lifecycle = '\n'.join(lifecycle_lines)
+          start = s.index('    @Override\n    protected void onResume() {')
+          end = s.index('    @Override\n    protected void onDestroy()', start)
+          s = s[:start] + new_lifecycle + '\n\n' + s[end:]
 
-              filePickerOpen = false;
-              if (glView != null) {
-                  try {
-                      glView.onResume();
-                  } catch (RuntimeException ignored) {
-                  }
-              }
-
-              if (resultCode == RESULT_OK && data != null) {
-                  Uri uri = data.getData();
-          '''
-          if old2 not in s:
-              raise SystemExit('onActivityResult source block not found')
-          s = s.replace(old2, new2)
-          old3 = '''    @Override
-          protected void onResume() {
-              super.onResume();
-              if (glView != null) glView.onResume();
-          }
-
-          @Override
-          protected void onPause() {
-              if (glView != null) glView.onPause();
-              super.onPause();
-          }
-          '''
-          new3 = '''    @Override
-          protected void onResume() {
-              super.onResume();
-              if (glView != null && !filePickerOpen) {
-                  try {
-                      glView.onResume();
-                  } catch (RuntimeException ignored) {
-                  }
-              }
-          }
-
-          @Override
-          protected void onPause() {
-              // Keep the GL thread alive while Android's document picker is on top.
-              if (glView != null && !filePickerOpen) {
-                  try {
-                      glView.onPause();
-                  } catch (RuntimeException ignored) {
-                  }
-              }
-              super.onPause();
-          }
-          '''
-          if old3 not in s:
-              raise SystemExit('GL lifecycle source block not found')
-          s = s.replace(old3, new3)
           p.write_text(s)
 
           g = Path('STLViewerAndroid_v1_2/app/build.gradle.kts')
-          t = g.read_text().replace('versionCode = 3', 'versionCode = 4').replace('versionName = "1.2"', 'versionName = "1.2.1"')
+          t = g.read_text()
+          t = t.replace('versionCode = 3', 'versionCode = 4', 1)
+          t = t.replace('versionName = "1.2"', 'versionName = "1.2.1"', 1)
           g.write_text(t)
           PY
+
           grep -q 'versionName = "1.2.1"' STLViewerAndroid_v1_2/app/build.gradle.kts
           grep -q 'ACTION_GET_CONTENT' STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java
           grep -q 'filePickerOpen' STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java
