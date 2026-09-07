@@ -1,0 +1,200 @@
+name: Build STL 3D Visare v1.2.1
+
+on:
+  pull_request:
+    branches:
+      - chatgpt-stl-viewer-build-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Recover verified v1.2 source
+        run: |
+          cat \
+            .github/stlviewer-v12-parts/part00.b64 \
+            .github/stlviewer-v12-parts/part01.b64 \
+            .github/stlviewer-v12-parts/part02.b64 \
+            .github/stlviewer-v12-parts/part03.b64 \
+            .github/stlviewer-v12-parts/part04a0.b64 \
+            .github/stlviewer-v12-parts/part04a1.b64 \
+            .github/stlviewer-v12-parts/part04a2.b64 \
+            .github/stlviewer-v12-parts/part04a3.b64 \
+            .github/stlviewer-v12-parts/part04a4.b64 \
+            .github/stlviewer-v12-parts/part04b.b64 \
+            .github/stlviewer-v12-parts/part05.b64 \
+            .github/stlviewer-v12-parts/part06.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/stl3d-v12.zip
+          unzip -t /tmp/stl3d-v12.zip
+          unzip -q /tmp/stl3d-v12.zip
+
+      - name: Apply v1.2.1 file-picker crash fix
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java')
+          s = p.read_text()
+          s = s.replace('import android.content.Intent;\n', 'import android.content.Intent;\nimport android.content.ActivityNotFoundException;\n')
+          s = s.replace('    private StlGLSurfaceView glView;\n', '    private StlGLSurfaceView glView;\n    private boolean filePickerOpen;\n')
+          old = '''    private void openFilePicker() {
+              Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+              intent.addCategory(Intent.CATEGORY_OPENABLE);
+              intent.setType("*/*");
+              intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+
+              try {
+                  startActivityForResult(intent, OPEN_STL);
+              } catch (Exception ex) {
+                  Toast.makeText(this, "Kunde inte öppna Androids filväljare.", Toast.LENGTH_LONG).show();
+              }
+          }
+          '''
+          new = '''    private void openFilePicker() {
+              filePickerOpen = true;
+
+              Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
+              intent.addCategory(Intent.CATEGORY_OPENABLE);
+              intent.setType("*/*");
+              intent.putExtra(Intent.EXTRA_MIME_TYPES, new String[] {
+                      "model/stl",
+                      "application/sla",
+                      "application/vnd.ms-pki.stl",
+                      "application/octet-stream",
+                      "*/*"
+              });
+              intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+              intent.addFlags(Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
+
+              try {
+                  startActivityForResult(intent, OPEN_STL);
+                  return;
+              } catch (ActivityNotFoundException first) {
+                  // Fall back below.
+              } catch (RuntimeException first) {
+                  // Fall back below instead of terminating the app.
+              }
+
+              Intent fallback = new Intent(Intent.ACTION_GET_CONTENT);
+              fallback.addCategory(Intent.CATEGORY_OPENABLE);
+              fallback.setType("*/*");
+              fallback.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+              try {
+                  startActivityForResult(Intent.createChooser(fallback, "Välj STL-fil"), OPEN_STL);
+              } catch (Exception ex) {
+                  filePickerOpen = false;
+                  Toast.makeText(this, "Kunde inte öppna Androids filväljare.", Toast.LENGTH_LONG).show();
+              }
+          }
+          '''
+          if old not in s:
+              raise SystemExit('openFilePicker source block not found')
+          s = s.replace(old, new)
+          old2 = '''        if (requestCode == OPEN_STL && resultCode == RESULT_OK && data != null) {
+              Uri uri = data.getData();
+          '''
+          new2 = '''        if (requestCode != OPEN_STL) return;
+
+              filePickerOpen = false;
+              if (glView != null) {
+                  try {
+                      glView.onResume();
+                  } catch (RuntimeException ignored) {
+                  }
+              }
+
+              if (resultCode == RESULT_OK && data != null) {
+                  Uri uri = data.getData();
+          '''
+          if old2 not in s:
+              raise SystemExit('onActivityResult source block not found')
+          s = s.replace(old2, new2)
+          old3 = '''    @Override
+          protected void onResume() {
+              super.onResume();
+              if (glView != null) glView.onResume();
+          }
+
+          @Override
+          protected void onPause() {
+              if (glView != null) glView.onPause();
+              super.onPause();
+          }
+          '''
+          new3 = '''    @Override
+          protected void onResume() {
+              super.onResume();
+              if (glView != null && !filePickerOpen) {
+                  try {
+                      glView.onResume();
+                  } catch (RuntimeException ignored) {
+                  }
+              }
+          }
+
+          @Override
+          protected void onPause() {
+              // Keep the GL thread alive while Android's document picker is on top.
+              if (glView != null && !filePickerOpen) {
+                  try {
+                      glView.onPause();
+                  } catch (RuntimeException ignored) {
+                  }
+              }
+              super.onPause();
+          }
+          '''
+          if old3 not in s:
+              raise SystemExit('GL lifecycle source block not found')
+          s = s.replace(old3, new3)
+          p.write_text(s)
+
+          g = Path('STLViewerAndroid_v1_2/app/build.gradle.kts')
+          t = g.read_text().replace('versionCode = 3', 'versionCode = 4').replace('versionName = "1.2"', 'versionName = "1.2.1"')
+          g.write_text(t)
+          PY
+          grep -q 'versionName = "1.2.1"' STLViewerAndroid_v1_2/app/build.gradle.kts
+          grep -q 'ACTION_GET_CONTENT' STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java
+          grep -q 'filePickerOpen' STLViewerAndroid_v1_2/app/src/main/java/se/johan/stlviewer/MainActivity.java
+
+      - name: Build debug APK
+        working-directory: STLViewerAndroid_v1_2
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK
+        run: |
+          test -s STLViewerAndroid_v1_2/app/build/outputs/apk/debug/app-debug.apk
+          unzip -t STLViewerAndroid_v1_2/app/build/outputs/apk/debug/app-debug.apk
+          sha256sum STLViewerAndroid_v1_2/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: STL-3D-Visare-v1.2.1-debug-apk
+          path: STLViewerAndroid_v1_2/app/build/outputs/apk/debug/app-debug.apk
