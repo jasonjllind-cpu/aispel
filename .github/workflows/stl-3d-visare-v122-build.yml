@@ -34,11 +34,21 @@ jobs:
         with:
           gradle-version: '9.6.0'
 
-      - name: Verify and unpack v1.2.2 source
+      - name: Recover verified v1.2.2 source
         run: |
-          echo "0efe5ee6c8a1eac2f8e18e29c24ea6cac96959c74cde533c42a41149d5fe51b1  .github/stlviewer-v122-source.zip" | sha256sum -c -
-          unzip -t .github/stlviewer-v122-source.zip
-          unzip -q .github/stlviewer-v122-source.zip
+          cat \
+            .github/stlviewer-v122-parts/part00.b64 \
+            .github/stlviewer-v122-parts/part01.b64 \
+            .github/stlviewer-v122-parts/part02.b64 \
+            .github/stlviewer-v122-parts/part03.b64 \
+            .github/stlviewer-v122-parts/part04.b64 \
+            .github/stlviewer-v122-parts/part05.b64 \
+            .github/stlviewer-v122-parts/part06.b64 \
+            .github/stlviewer-v122-parts/part07.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/stlviewer-v122-source.zip
+          echo "0efe5ee6c8a1eac2f8e18e29c24ea6cac96959c74cde533c42a41149d5fe51b1  /tmp/stlviewer-v122-source.zip" | sha256sum -c -
+          unzip -t /tmp/stlviewer-v122-source.zip
+          unzip -q /tmp/stlviewer-v122-source.zip
           grep -q 'versionName = "1.2.2"' STLViewerAndroid_v1_2_2/app/build.gradle.kts
           ! grep -q 'SplashActivity' STLViewerAndroid_v1_2_2/app/src/main/AndroidManifest.xml
           grep -q 'android.intent.action.MAIN' STLViewerAndroid_v1_2_2/app/src/main/AndroidManifest.xml
