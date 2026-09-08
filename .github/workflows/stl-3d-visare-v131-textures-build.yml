@@ -1,0 +1,140 @@
+name: Build STL 3D Visare v1.3.1 Textures
+
+on:
+  pull_request:
+    branches:
+      - chatgpt-stl-viewer-build-20260906
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android API 36
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          sdkmanager "platforms;android-36" "build-tools;36.0.0"
+
+      - name: Set up Gradle 9.6
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Recover verified v1.2.2 source
+        run: |
+          cat \
+            .github/stlviewer-v122-parts/part00.b64 \
+            .github/stlviewer-v122-parts/part01.b64 \
+            .github/stlviewer-v122-parts/part02.b64 \
+            .github/stlviewer-v122-parts/part03.b64 \
+            .github/stlviewer-v122-parts/part04.b64 \
+            .github/stlviewer-v122-parts/part05.b64 \
+            .github/stlviewer-v122-parts/part06.b64 \
+            .github/stlviewer-v122-parts/part07.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/stlviewer-v122-source.zip
+          echo "0efe5ee6c8a1eac2f8e18e29c24ea6cac96959c74cde533c42a41149d5fe51b1  /tmp/stlviewer-v122-source.zip" | sha256sum -c -
+          unzip -t /tmp/stlviewer-v122-source.zip
+          unzip -q /tmp/stlviewer-v122-source.zip
+
+      - name: Recover and verify app icon
+        run: |
+          cat \
+            .github/stlviewer-v123-icon96-parts/part00.b64 \
+            .github/stlviewer-v123-icon96-parts/part01.b64 \
+            .github/stlviewer-v123-icon96-parts/part02.b64 \
+            .github/stlviewer-v123-icon96-parts/part03.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/stlviewer-icon96.png
+          echo "e64a11a8ed9da2471898a81a7a4ecb07e4af1e1891086e7d7fcb9563b9d33326  /tmp/stlviewer-icon96.png" | sha256sum -c -
+
+      - name: Restore launcher icon assets
+        run: |
+          python3 -m pip install --quiet pillow
+          cd STLViewerAndroid_v1_2_2
+          python3 - <<'PY'
+          from PIL import Image
+          from pathlib import Path
+          src = Image.open('/tmp/stlviewer-icon96.png').convert('RGBA')
+          sizes = {'mdpi':48,'hdpi':72,'xhdpi':96,'xxhdpi':144,'xxxhdpi':192}
+          for density, size in sizes.items():
+              out = Path(f'app/src/main/res/mipmap-{density}')
+              out.mkdir(parents=True, exist_ok=True)
+              im = src.resize((size, size), Image.Resampling.LANCZOS)
+              im.save(out / 'ic_launcher.png')
+              im.save(out / 'ic_launcher_round.png')
+          PY
+
+      - name: Recover and apply v1.3.0 GLB changes
+        run: |
+          cat \
+            .github/stlviewer-v130-small/p00.b64 \
+            .github/stlviewer-v130-small/p01.b64 \
+            .github/stlviewer-v130-small/p02.b64 \
+            .github/stlviewer-v130-small/p03.b64 \
+            .github/stlviewer-v130-small/p04.b64 \
+            .github/stlviewer-v130-small/p05.b64 \
+            .github/stlviewer-v130-small/p06.b64 \
+            .github/stlviewer-v130-small/p07.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/v130-glb-overrides.zip
+          echo "48ce330159cb218e54f4027bdfbaa8fabbea5844fb03cb8ea378fbb84e4bc188  /tmp/v130-glb-overrides.zip" | sha256sum -c -
+          unzip -qo /tmp/v130-glb-overrides.zip -d STLViewerAndroid_v1_2_2
+
+      - name: Recover and apply v1.3.1 texture changes
+        run: |
+          cat \
+            .github/stlviewer-v131-texture-parts/p00.b64 \
+            .github/stlviewer-v131-texture-parts/p01.b64 \
+            .github/stlviewer-v131-texture-parts/p02.b64 \
+            .github/stlviewer-v131-texture-parts/p03a.b64 \
+            .github/stlviewer-v131-texture-parts/p03b.b64 \
+            .github/stlviewer-v131-texture-parts/p04.b64 \
+            .github/stlviewer-v131-texture-parts/p05.b64 \
+            .github/stlviewer-v131-texture-parts/p06.b64 \
+            .github/stlviewer-v131-texture-parts/p07.b64 \
+            .github/stlviewer-v131-texture-parts/p08.b64 \
+            .github/stlviewer-v131-texture-parts/p09.b64 \
+            | tr -d '\n\r ' | base64 --decode > /tmp/v131-texture-overrides.zip
+          echo "c4bf806ac2daf82be4d353b5ea80d980dddda42bbaccff2b969ca54d5085fdab  /tmp/v131-texture-overrides.zip" | sha256sum -c -
+          unzip -t /tmp/v131-texture-overrides.zip
+          unzip -qo /tmp/v131-texture-overrides.zip -d STLViewerAndroid_v1_2_2
+          grep -q 'versionCode = 7' STLViewerAndroid_v1_2_2/app/build.gradle.kts
+          grep -q 'versionName = "1.3.1"' STLViewerAndroid_v1_2_2/app/build.gradle.kts
+          grep -q 'baseColorTexture' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/GlbParser.java
+          grep -q 'KHR_texture_transform' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/GlbParser.java
+          grep -q 'TextureAsset' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/Mesh.java
+          grep -q 'ALPHA_BLEND' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/Mesh.java
+          grep -q 'attribute vec2 aTexCoord' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/StlRenderer.java
+          grep -q 'GLUtils.texImage2D' STLViewerAndroid_v1_2_2/app/src/main/java/se/johan/stlviewer/StlRenderer.java
+
+      - name: Build debug APK
+        working-directory: STLViewerAndroid_v1_2_2
+        run: gradle --no-daemon :app:assembleDebug
+
+      - name: Verify APK
+        run: |
+          APK=STLViewerAndroid_v1_2_2/app/build/outputs/apk/debug/app-debug.apk
+          test -s "$APK"
+          unzip -t "$APK"
+          unzip -l "$APK" | grep 'mipmap-xxxhdpi.*ic_launcher'
+          unzip -l "$APK" | grep 'classes.dex'
+          file "$APK"
+          sha256sum "$APK"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: STL-3D-Visare-v1.3.1-Textures-debug-apk
+          path: STLViewerAndroid_v1_2_2/app/build/outputs/apk/debug/app-debug.apk
